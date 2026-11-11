@@ -114,53 +114,47 @@ navigasi.addEventListener("click", (e) => {
 
 function slipHero() {
   const terbaru = Store.semuaLaporan()[0];
-  if (!terbaru) {
-    return `
-      <div class="slip" aria-label="Pratinjau slip laporan">
-        <div class="slip__kepala">
-          <span class="slip__kode">SLIP LAPORAN · PRATINJAU</span>
-          ${statusPil("menunggu")}
-        </div>
-        <div class="slip__isi">
-          <div class="slip__foto">Foto kerusakan (opsional)</div>
-          <dl class="slip__baris">
-            <dt>Kategori</dt><dd>AC dan pendingin</dd>
-            <dt>Lokasi</dt><dd>Ruang kelas XI PPLG 4</dd>
-            <dt>Judul</dt><dd>AC tidak dingin sejak Senin</dd>
-          </dl>
-        </div>
-        <div class="slip__jejak" aria-hidden="true">
-          <span class="jejak__titik selesai"><i></i><span>Dikirim</span></span>
-          <span class="jejak__titik"><i></i><span>Diperiksa</span></span>
-          <span class="jejak__titik"><i></i><span>Selesai</span></span>
-        </div>
-      </div>`;
-  }
+  const data = terbaru
+    ? {
+        kode: terbaru.kode,
+        status: terbaru.status,
+        kategori: namaKategori(terbaru.kategoriId),
+        lokasi: terbaru.lokasi,
+        judul: terbaru.judul,
+        waktu: relatif(terbaru.dibuat),
+      }
+    : {
+        kode: "FT-2611-001",
+        status: "menunggu",
+        kategori: "AC dan pendingin",
+        lokasi: "Ruang kelas XI PPLG 4",
+        judul: "AC tidak dingin sejak Senin",
+        waktu: "contoh slip",
+      };
   const langkah = ["menunggu", "diproses", "selesai"];
-  const posisi = langkah.indexOf(terbaru.status);
+  const posisi = Math.max(0, langkah.indexOf(data.status));
   return `
-    <div class="slip" aria-label="Slip laporan terbaru">
-      <div class="slip__kepala">
-        <span class="slip__kode">${esc(terbaru.kode)}</span>
-        ${statusPil(terbaru.status)}
-      </div>
-      <div class="slip__isi">
-        ${
-          terbaru.foto
-            ? `<img class="slip__foto" src="${terbaru.foto}" alt="Foto kerusakan pada laporan ${esc(terbaru.kode)}" style="object-fit:cover" />`
-            : `<div class="slip__foto">Tanpa foto</div>`
-        }
-        <dl class="slip__baris">
-          <dt>Kategori</dt><dd>${esc(namaKategori(terbaru.kategoriId))}</dd>
-          <dt>Lokasi</dt><dd>${esc(terbaru.lokasi)}</dd>
-          <dt>Judul</dt><dd>${esc(terbaru.judul)}</dd>
+    <div class="tumpuk" data-miring aria-label="${terbaru ? "Slip laporan terbaru" : "Contoh slip laporan"}">
+      <div class="tumpuk__lembar tumpuk__lembar--3" aria-hidden="true"></div>
+      <div class="tumpuk__lembar tumpuk__lembar--2" aria-hidden="true"></div>
+      <article class="tiket">
+        <div class="tiket__sobek" aria-hidden="true"></div>
+        <header class="tiket__kepala">
+          <span class="tiket__kode">${esc(data.kode)}</span>
+          <span class="tiket__waktu">${esc(data.waktu)}</span>
+        </header>
+        <h3 class="tiket__judul">${esc(data.judul)}</h3>
+        <dl class="tiket__baris">
+          <div><dt>Kategori</dt><dd>${esc(data.kategori)}</dd></div>
+          <div><dt>Lokasi</dt><dd>${esc(data.lokasi)}</dd></div>
         </dl>
-      </div>
-      <div class="slip__jejak" aria-hidden="true">
-        ${["Dikirim", "Diperiksa", "Selesai"]
-          .map((teks, i) => `<span class="jejak__titik ${posisi === i ? "aktif" : posisi > i ? "selesai" : ""}"><i></i><span>${teks}</span></span>`)
-          .join("")}
-      </div>
+        <div class="tiket__jejak" style="--posisi:${posisi}">
+          ${["Dikirim", "Diperiksa", "Selesai"]
+            .map((t, i) => `<span class="${i <= posisi ? "lewat" : ""}"><i></i>${t}</span>`)
+            .join("")}
+        </div>
+        <div class="tiket__cap" aria-hidden="true">${data.status === "selesai" ? "SELESAI" : "DITERIMA"}</div>
+      </article>
     </div>`;
 }
 
@@ -171,112 +165,66 @@ function halamanBeranda() {
   Store.semuaLaporan().forEach((l) => {
     jumlahPer[l.kategoriId] = (jumlahPer[l.kategoriId] || 0) + 1;
   });
-  const papan =
-    r.total === 0
-      ? `<div class="papan__judul">Belum ada laporan tercatat di perangkat ini.<small>Angka di papan ini diambil dari laporan yang benar-benar tersimpan di browser kamu.</small></div>`
-      : `<div class="papan__judul">Papan laporan di perangkat ini<small>Dihitung langsung dari laporan yang tersimpan di browser kamu.</small></div>
-         <div class="papan__angka">
-           <div class="papan__sel"><b>${r.total}</b><span>Total laporan</span></div>
-           <div class="papan__sel"><b>${r.menunggu}</b><span>Menunggu</span></div>
-           <div class="papan__sel"><b>${r.diproses}</b><span>Diproses</span></div>
-           <div class="papan__sel"><b>${r.selesai}</b><span>Selesai</span></div>
-         </div>`;
+  const maksKategori = Math.max(1, ...Object.values(jumlahPer));
+  const pita = kategori.map((k) => `<span>${esc(k.nama)}</span><i aria-hidden="true"></i>`).join("");
+  const persen = (n) => (r.total ? Math.round((n / r.total) * 100) : 0);
 
   akar.innerHTML = `
-    <section class="hero">
-      <div class="bungkus hero__isi">
-        <div>
-          <p class="hero__label">Pelaporan fasilitas · SMK Telkom Purwokerto</p>
-          <h1>Fasilitas rusak jangan cuma <em>diceritakan</em> di grup kelas.</h1>
-          <p class="hero__pimpin">
-            Kirim laporan kerusakan dari HP, lampirkan foto kalau ada, lalu pantau sendiri
-            sampai petugas menandainya selesai. Semua laporan tercatat dengan nomor,
-            bukan tenggelam di chat.
+    <section class="pembuka">
+      <div class="pembuka__latar" aria-hidden="true">
+        <span class="pembuka__kotak k1"></span>
+        <span class="pembuka__kotak k2"></span>
+        <span class="pembuka__kotak k3"></span>
+        <span class="pembuka__huruf">LAPOR</span>
+      </div>
+      <div class="bungkus pembuka__isi">
+        <div class="pembuka__teks">
+          <p class="cap-kecil" data-muncul><span class="simpul-denyut"></span>SMK Telkom Purwokerto · Sarana &amp; Prasarana</p>
+          <h1 class="pembuka__judul" aria-label="Fasilitas rusak jangan cuma diceritakan di grup kelas.">
+            <span class="baris"><span>Fasilitas rusak</span></span>
+            <span class="baris"><span>jangan cuma</span></span>
+            <span class="baris"><span><em class="coret">diceritakan</em></span></span>
+            <span class="baris"><span>di grup kelas.</span></span>
+          </h1>
+          <p class="pembuka__pimpin" data-muncul style="--tunda:.5s">
+            Kirim laporan dari HP, lampirkan foto kalau ada, lalu pantau sendiri sampai
+            petugas menutupnya. Setiap laporan dapat nomor &mdash; tidak tenggelam di chat.
           </p>
-          <div class="hero__aksi">
-            <a class="tombol tombol--utama" href="#/lapor">Buat laporan kerusakan</a>
-            <a class="tombol tombol--garis" href="#/lacak">Lacak pakai kode laporan</a>
-          </div>
-          <div class="hero__catatan">
-            <span>Foto bersifat opsional</span>
-            <span>Status bisa dipantau</span>
-            <span>Riwayat tersimpan per akun</span>
+          <div class="pembuka__aksi" data-muncul style="--tunda:.65s">
+            <a class="tombol tombol--utama tombol--besar" data-magnet href="#/lapor">
+              Buat laporan <span class="panah" aria-hidden="true">&rarr;</span>
+            </a>
+            <a class="tombol tombol--garis tombol--besar" data-magnet href="#/lacak">Lacak kode laporan</a>
           </div>
         </div>
-        ${slipHero()}
+        <div class="pembuka__slip" data-muncul="kanan" style="--tunda:.35s">${slipHero()}</div>
       </div>
+      <a class="gulir-tanda" href="#angka" aria-label="Gulir ke bawah"><span></span></a>
     </section>
 
-    <section class="papan" aria-label="Ringkasan laporan">
-      <div class="bungkus papan__isi">
-        ${papan}
-        <div class="papan__aksi">
-          <a class="tombol tombol--garis tombol--kecil" href="#/lacak">Buka halaman lacak</a>
-        </div>
-      </div>
-    </section>
+    <div class="pita" aria-hidden="true">
+      <div class="pita__jalur">${pita}${pita}</div>
+    </div>
 
-    <section class="bagian" id="cara-kerja">
+    <section class="angka" id="angka" aria-label="Ringkasan laporan">
       <div class="bungkus">
-        <div class="judul-bagian"><h2>Bagaimana satu laporan bergerak</h2></div>
-        <p class="pimpin">
-          Laporan masuk ke meja petugas, diperiksa, lalu diproses. Kalau laporan tidak
-          sesuai, petugas menolak dengan alasan yang bisa kamu baca.
-        </p>
-        <div class="figur__isi">
-          <div class="figur__bingkai">
-            <iframe
-              src="figure/triage.html"
-              title="Figur isometrik: meja triage laporan. Kartu laporan bergerak melewati pos pemeriksaan, penentu prioritas, dan cap selesai."
-              loading="lazy"
-            ></iframe>
-          </div>
-          <ol class="tahap">
-            <li>
-              <div>
-                <h3>Kamu kirim laporan</h3>
-                <p>Sistem memeriksa kelengkapan data, lalu menyimpannya dengan status Menunggu verifikasi.</p>
-              </div>
-            </li>
-            <li>
-              <div>
-                <h3>Petugas memeriksa</h3>
-                <p>Laporan dibaca, dicocokkan dengan kondisi di lokasi, lalu ditetapkan prioritasnya.</p>
-              </div>
-            </li>
-            <li>
-              <div>
-                <h3>Ditolak atau diproses</h3>
-                <p>Kalau tidak sesuai, laporan ditolak disertai alasan. Kalau sesuai, statusnya menjadi Diproses.</p>
-              </div>
-            </li>
-            <li>
-              <div>
-                <h3>Selesai dan tercatat</h3>
-                <p>Setelah perbaikan, petugas menutup laporan. Riwayatnya tetap bisa kamu buka kapan saja.</p>
-              </div>
-            </li>
-          </ol>
+        <div class="angka__kepala" data-muncul>
+          <h2>Papan hari ini</h2>
+          <p>${r.total ? "Dihitung langsung dari data laporan yang tersimpan." : "Belum ada laporan tercatat. Jadilah yang pertama."}</p>
         </div>
-      </div>
-    </section>
-
-    <section class="bagian bagian--hangat" id="kategori">
-      <div class="bungkus">
-        <div class="judul-bagian"><h2>Kategori fasilitas</h2></div>
-        <p class="pimpin">
-          Kategori dipakai petugas untuk mengelompokkan laporan dan menyusun rekap.
-          Kolom paling kanan menunjukkan jumlah laporan yang tercatat di perangkat ini.
-        </p>
-        <div class="kategori">
-          ${kategori
+        <div class="angka__grid">
+          ${[
+            ["Total laporan", r.total, "total"],
+            ["Menunggu", r.menunggu, "tunggu"],
+            ["Diproses", r.diproses, "proses"],
+            ["Selesai", r.selesai, "selesai"],
+          ]
             .map(
-              (k, i) => `
-            <div class="kategori__baris">
-              <span class="kategori__nomor">${String(i + 1).padStart(2, "0")}</span>
-              <span class="kategori__nama">${esc(k.nama)}</span>
-              <span class="kategori__contoh">${esc(k.contoh)}</span>
-              <span class="kategori__jumlah"><b>${jumlahPer[k.id] || 0}</b>laporan</span>
+              ([label, n, nada], i) => `
+            <div class="angka__sel" data-nada="${nada}" data-muncul style="--tunda:${i * 0.08}s">
+              <b data-hitung="${n}">0</b>
+              <span>${label}</span>
+              <div class="angka__batang"><i style="--isi:${nada === "total" ? 100 : persen(n)}%"></i></div>
             </div>`
             )
             .join("")}
@@ -284,77 +232,145 @@ function halamanBeranda() {
       </div>
     </section>
 
-    <section class="bagian">
-      <div class="bungkus">
-        <div class="panel">
-          <div>
-            <h2>Untuk petugas sekolah</h2>
-            <p>
-              Satu tempat untuk memeriksa laporan masuk, menetapkan prioritas, menulis
-              catatan tindak lanjut, dan melihat rekap per kategori maupun per lokasi.
-            </p>
-            <ul class="panel__daftar">
-              <li>Daftar laporan dengan saringan status dan prioritas.</li>
-              <li>Verifikasi, penolakan beralasan, dan pembaruan status penanganan.</li>
-              <li>Catatan tindak lanjut yang ikut terbaca oleh pelapor.</li>
-              <li>Rekap jumlah laporan per kategori dan per lokasi.</li>
-            </ul>
-            <a class="tombol tombol--utama" href="#/masuk">Masuk sebagai petugas</a>
+    <section class="alur" id="cara-kerja">
+      <div class="bungkus alur__isi">
+        <div class="alur__lekat">
+          <p class="cap-kecil" data-muncul><span class="simpul-denyut"></span>Perjalanan satu laporan</p>
+          <h2 class="judul-besar" data-muncul>Dari keluhan<br />jadi <span class="sorot">perbaikan</span>.</h2>
+          <div class="alur__meter" aria-hidden="true">
+            <span class="alur__angka" id="alurAngka">01</span><span class="alur__per">/ 04</span>
           </div>
-          <div class="panel__kartu">
-            <h3>Isi dasbor petugas</h3>
-            <ul>
-              <li><span>Menunggu verifikasi</span><b>${r.menunggu}</b></li>
-              <li><span>Sedang diproses</span><b>${r.diproses}</b></li>
-              <li><span>Selesai</span><b>${r.selesai}</b></li>
-              <li><span>Ditolak</span><b>${r.ditolak}</b></li>
-            </ul>
+          <div class="alur__figur" data-muncul>
+            <iframe
+              src="figure/triage.html"
+              title="Figur isometrik: kartu laporan bergerak melewati pos pemeriksaan, penentu prioritas, dan cap selesai."
+              loading="lazy"
+              scrolling="no"
+            ></iframe>
+          </div>
+        </div>
+        <ol class="alur__langkah" id="alurLangkah">
+          ${[
+            ["Kamu kirim laporan", "Pilih kategori dan lokasi, tulis judul singkat, lampirkan foto kalau ada. Sistem langsung memberi nomor laporan.", "Menunggu verifikasi", "tunggu"],
+            ["Petugas memeriksa", "Laporan dicocokkan dengan kondisi di lokasi, lalu diberi prioritas rendah, sedang, atau tinggi.", "Diperiksa", "tunggu"],
+            ["Diproses atau ditolak", "Kalau sesuai, teknisi dijadwalkan. Kalau tidak, laporan ditolak dengan alasan yang bisa kamu baca.", "Diproses", "proses"],
+            ["Selesai dan tercatat", "Petugas menutup laporan. Riwayat lengkapnya tetap tersimpan dan bisa dibuka kapan saja.", "Selesai", "selesai"],
+          ]
+            .map(
+              ([judul, isi, label, nada], i) => `
+            <li class="alur__item" data-langkah="${i}">
+              <span class="alur__no">${String(i + 1).padStart(2, "0")}</span>
+              <div>
+                <h3>${judul}</h3>
+                <p>${isi}</p>
+                <span class="status" data-nada="${nada}">${label}</span>
+              </div>
+            </li>`
+            )
+            .join("")}
+        </ol>
+      </div>
+    </section>
+
+    <section class="rak" id="kategori">
+      <div class="bungkus">
+        <div class="rak__kepala">
+          <h2 class="judul-besar" data-muncul>Apa yang<br />rusak?</h2>
+          <p data-muncul style="--tunda:.1s">Sembilan kategori yang dipakai petugas untuk mengelompokkan laporan. Arahkan kursor untuk melihat contoh kerusakannya.</p>
+        </div>
+        <div class="rak__daftar">
+          ${kategori
+            .map(
+              (k, i) => `
+            <div class="rak__baris" data-muncul style="--tunda:${(i % 5) * 0.05}s">
+              <span class="rak__no">${String(i + 1).padStart(2, "0")}</span>
+              <span class="rak__nama">${esc(k.nama)}</span>
+              <span class="rak__contoh">${esc(k.contoh)}</span>
+              <span class="rak__jumlah">
+                <i style="--isi:${((jumlahPer[k.id] || 0) / maksKategori) * 100}%"></i>
+                <b>${jumlahPer[k.id] || 0}</b>
+              </span>
+            </div>`
+            )
+            .join("")}
+        </div>
+      </div>
+    </section>
+
+    <section class="gelap">
+      <div class="bungkus gelap__isi">
+        <div class="gelap__teks">
+          <p class="cap-kecil cap-kecil--terang" data-muncul><span class="simpul-denyut"></span>Untuk petugas sekolah</p>
+          <h2 class="judul-besar" data-muncul>Satu meja untuk<br />semua laporan.</h2>
+          <ul class="gelap__daftar">
+            <li data-muncul>Saring laporan menurut status dan prioritas</li>
+            <li data-muncul style="--tunda:.08s">Verifikasi, tolak dengan alasan, atau proses</li>
+            <li data-muncul style="--tunda:.16s">Catatan tindak lanjut terbaca oleh pelapor</li>
+            <li data-muncul style="--tunda:.24s">Rekap per kategori dan per lokasi</li>
+          </ul>
+          <a class="tombol tombol--utama tombol--besar" data-magnet href="#/masuk" data-muncul>Masuk sebagai petugas <span class="panah" aria-hidden="true">&rarr;</span></a>
+        </div>
+        <div class="layar" data-muncul="kanan" data-miring>
+          <div class="layar__bilah"><i></i><i></i><i></i><span>dasbor petugas</span></div>
+          <div class="layar__isi">
+            ${[
+              ["Menunggu verifikasi", r.menunggu, "tunggu"],
+              ["Sedang diproses", r.diproses, "proses"],
+              ["Selesai", r.selesai, "selesai"],
+              ["Ditolak", r.ditolak, "tolak"],
+            ]
+              .map(
+                ([label, n, nada]) => `
+              <div class="layar__baris" data-nada="${nada}">
+                <span>${label}</span>
+                <div class="layar__batang"><i style="--isi:${Math.max(4, persen(n))}%"></i></div>
+                <b data-hitung="${n}">0</b>
+              </div>`
+              )
+              .join("")}
           </div>
         </div>
       </div>
     </section>
 
-    <section class="bagian bagian--hangat" id="lacak-bagian">
+    <section class="ajakan">
       <div class="bungkus">
-        <div class="judul-bagian"><h2>Lacak laporan tanpa masuk</h2></div>
-        <p class="pimpin">
-          Punya nomor laporan? Masukkan di sini untuk melihat posisi terakhirnya.
-          Nomor laporan kamu terima setelah laporan dikirim.
-        </p>
-        <form class="lacak-kotak" id="lacakCepat" novalidate>
-          <div class="medan">
-            <label for="kodeCepat">Nomor laporan</label>
-            <input type="text" id="kodeCepat" name="kode" placeholder="FT-2611-001" autocomplete="off" />
-            <p class="medan__galat" id="galatCepat" role="alert"></p>
+        <div class="ajakan__kotak" data-muncul="skala">
+          <div class="ajakan__teks">
+            <h2>Punya nomor laporan?</h2>
+            <p>Cek posisi terakhir laporanmu tanpa perlu masuk.</p>
           </div>
-          <button class="tombol tombol--utama" type="submit" style="align-self:start">Cek status</button>
-        </form>
-        <div class="lacak-hasil" id="hasilCepat" aria-live="polite"></div>
+          <form class="ajakan__form" id="lacakCepat" novalidate>
+            <label class="sr" for="kodeCepat">Nomor laporan</label>
+            <input type="text" id="kodeCepat" name="kode" placeholder="FT-2611-001" autocomplete="off" />
+            <button class="tombol tombol--tinta" type="submit">Cek status</button>
+          </form>
+          <p class="ajakan__galat" id="galatCepat" role="alert"></p>
+          <div class="lacak-hasil" id="hasilCepat" aria-live="polite"></div>
+        </div>
       </div>
     </section>`;
 
-  document.querySelector("#lacakCepat").addEventListener("submit", (e) => {
+  document.querySelector("#lacakCepat").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const kode = document.querySelector("#kodeCepat").value.trim();
+    const input = document.querySelector("#kodeCepat");
+    const kode = input.value.trim();
     const galat = document.querySelector("#galatCepat");
     const hasil = document.querySelector("#hasilCepat");
     if (!kode) {
       galat.textContent = "Isi nomor laporan dulu.";
-      galat.classList.add("tampil");
-      document.querySelector("#kodeCepat").setAttribute("aria-invalid", "true");
-      document.querySelector("#kodeCepat").focus();
+      input.setAttribute("aria-invalid", "true");
+      input.focus();
       hasil.innerHTML = "";
       return;
     }
-    galat.classList.remove("tampil");
-    document.querySelector("#kodeCepat").removeAttribute("aria-invalid");
+    galat.textContent = "";
+    input.removeAttribute("aria-invalid");
     hasil.innerHTML = `<div class="memuat" role="status" aria-label="Mencari laporan"><span></span><span></span></div>`;
-    setTimeout(() => {
-      const laporan = Store.cariKode(kode);
-      hasil.innerHTML = laporan
-        ? kartuHasilLacak(laporan)
-        : `<div class="galat-kotak">Laporan dengan nomor <strong>${esc(kode.toUpperCase())}</strong> tidak ditemukan di perangkat ini. Periksa kembali nomornya.</div>`;
-    }, 320);
+    const laporan = await Store.cariKodeJauh(kode);
+    hasil.innerHTML = laporan
+      ? kartuHasilLacak(laporan)
+      : `<div class="galat-kotak">Laporan dengan nomor <strong>${esc(kode.toUpperCase())}</strong> tidak ditemukan. Periksa kembali nomornya.</div>`;
   });
 }
 
@@ -417,12 +433,11 @@ function halamanLacak() {
     galat.classList.remove("tampil");
     input.removeAttribute("aria-invalid");
     hasil.innerHTML = `<div class="memuat" role="status" aria-label="Mencari laporan"><span></span><span></span></div>`;
-    setTimeout(() => {
-      const laporan = Store.cariKode(nilai);
+    Store.cariKodeJauh(nilai).then((laporan) => {
       hasil.innerHTML = laporan
         ? kartuHasilLacak(laporan)
         : `<div class="galat-kotak">Tidak ada laporan dengan nomor <strong>${esc(nilai.toUpperCase())}</strong>. Coba periksa lagi, atau hubungi petugas sarana kalau nomornya yakin benar.</div>`;
-    }, 320);
+    });
   });
 }
 
@@ -1433,3 +1448,6 @@ window.addEventListener("hashchange", () => {
 
 gambarAksi();
 gambarRute();
+Store.siapkan().then((berubah) => {
+  if (berubah) gambarRute();
+});
