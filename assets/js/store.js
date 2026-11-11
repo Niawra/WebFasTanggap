@@ -87,7 +87,110 @@ function kodeBaru() {
   return `FT-${String(d.getFullYear()).slice(2)}${bulan}-${String(db.urutan).padStart(3, "0")}`;
 }
 
+
+/* ---------- Sinkron Supabase (opsional) ---------------------------------- */
+
+const AWAN = (() => {
+  const c = window.FASTANGGAP_SUPABASE || {};
+  if (!c.url || !c.anonKey) return null;
+  return { url: c.url.replace(/\/$/, "") + "/rest/v1", kunci: c.anonKey };
+})();
+
+async function awanMinta(jalur, opsi = {}) {
+  const res = await fetch(`${AWAN.url}/${jalur}`, {
+    ...opsi,
+    headers: {
+      apikey: AWAN.kunci,
+      Authorization: `Bearer ${AWAN.kunci}`,
+      "Content-Type": "application/json",
+      ...(opsi.headers || {}),
+    },
+  });
+  if (!res.ok) throw new Error(`Supabase ${res.status}: ${await res.text()}`);
+  const teks = await res.text();
+  return teks ? JSON.parse(teks) : null;
+}
+
+function keBaris(l) {
+  return {
+    kode: l.kode, judul: l.judul, kategori_id: l.kategoriId, lokasi: l.lokasi,
+    deskripsi: l.deskripsi, foto: l.foto || "", prioritas: l.prioritas || "",
+    status: l.status, dibuat: l.dibuat, pelapor_id: l.pelaporId,
+    pelapor_nama: l.pelaporNama, pelapor_kelas: l.pelaporKelas, riwayat: l.riwayat || [],
+  };
+}
+
+function dariBaris(b) {
+  return {
+    kode: b.kode, judul: b.judul, kategoriId: b.kategori_id, lokasi: b.lokasi,
+    deskripsi: b.deskripsi, foto: b.foto || "", prioritas: b.prioritas || "",
+    status: b.status, dibuat: b.dibuat, pelaporId: b.pelapor_id,
+    pelaporNama: b.pelapor_nama, pelaporKelas: b.pelapor_kelas, riwayat: b.riwayat || [],
+  };
+}
+
+// Tulis ke Supabase di belakang layar; kalau gagal, data lokal tetap aman.
+function awanKirim(tabel, baris) {
+  if (!AWAN) return;
+  awanMinta(tabel, {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify(baris),
+  }).catch((g) => console.warn("[FasTanggap] gagal sinkron", g));
+}
+
+function awanHapus(tabel, kolom, nilai) {
+  if (!AWAN) return;
+  awanMinta(`${tabel}?${kolom}=eq.${encodeURIComponent(nilai)}`, { method: "DELETE" }).catch((g) =>
+    console.warn("[FasTanggap] gagal hapus", g)
+  );
+}
+
+function hitungUrutan() {
+  db.urutan = db.laporan.reduce(
+    (m, l) => Math.max(m, parseInt(String(l.kode).split("-")[2], 10) || 0),
+    db.urutan || 0
+  );
+}
+
 const Store = {
+  terhubung: Boolean(AWAN),
+
+  // Tarik data dari Supabase sekali saat halaman dibuka.
+  async siapkan() {
+    if (!AWAN) return false;
+    try {
+      muat();
+      const [laporan, kategori, lokasi] = await Promise.all([
+        awanMinta("laporan?select=*&order=dibuat.desc"),
+        awanMinta("kategori?select=*"),
+        awanMinta("lokasi?select=*"),
+      ]);
+      if (!kategori.length) awanKirim("kategori", db.kategori);
+      else db.kategori = kategori.map((k) => ({ id: k.id, nama: k.nama, contoh: k.contoh || "" }));
+      if (!lokasi.length) awanKirim("lokasi", db.lokasi.map((nama) => ({ nama })));
+      else db.lokasi = lokasi.map((l) => l.nama);
+      db.laporan = laporan.map(dariBaris);
+      hitungUrutan();
+      simpan();
+      return true;
+    } catch (galat) {
+      console.warn("[FasTanggap] Supabase tidak terjangkau, memakai data lokal.", galat);
+      return false;
+    }
+  },
+
+  async cariKodeJauh(kode) {
+    const lokal = this.cariKode(kode);
+    if (lokal || !AWAN) return lokal;
+    try {
+      const bersih = encodeURIComponent(String(kode).trim().toUpperCase());
+      const hasil = await awanMinta(`laporan?kode=eq.${bersih}&select=*`);
+      return hasil && hasil[0] ? dariBaris(hasil[0]) : null;
+    } catch (g) {
+      return null;
+    }
+  },
   semuaLaporan() {
     return muat().laporan.slice().sort((a, b) => new Date(b.dibuat) - new Date(a.dibuat));
   },
@@ -137,6 +240,7 @@ const Store = {
       db.laporan.shift();
       return { ok: false, pesan: "Penyimpanan browser penuh. Coba kirim tanpa foto atau dengan foto yang lebih kecil." };
     }
+    awanKirim("laporan", keBaris(laporan));
     return { ok: true, laporan };
   },
 
@@ -153,6 +257,7 @@ const Store = {
       oleh,
     });
     if (!simpan()) return { ok: false, pesan: "Gagal menyimpan perubahan." };
+    awanKirim("laporan", keBaris(laporan));
     return { ok: true, laporan };
   },
 
@@ -161,8 +266,10 @@ const Store = {
     if (!bersih) return { ok: false, pesan: "Nama kategori belum diisi." };
     const ada = muat().kategori.some((k) => k.nama.toLowerCase() === bersih.toLowerCase());
     if (ada) return { ok: false, pesan: "Kategori itu sudah ada." };
-    db.kategori.push({ id: `k-${Date.now()}`, nama: bersih, contoh: (contoh || "").trim() || "Belum ada contoh" });
+    const baru = { id: `k-${Date.now()}`, nama: bersih, contoh: (contoh || "").trim() || "Belum ada contoh" };
+    db.kategori.push(baru);
     simpan();
+    awanKirim("kategori", baru);
     return { ok: true };
   },
 
@@ -171,6 +278,7 @@ const Store = {
     if (dipakai) return { ok: false, pesan: "Kategori ini masih dipakai laporan yang ada." };
     db.kategori = db.kategori.filter((k) => k.id !== id);
     simpan();
+    awanHapus("kategori", "id", id);
     return { ok: true };
   },
 
@@ -182,6 +290,7 @@ const Store = {
     }
     db.lokasi.push(bersih);
     simpan();
+    awanKirim("lokasi", { nama: bersih });
     return { ok: true };
   },
 
@@ -190,6 +299,7 @@ const Store = {
     if (dipakai) return { ok: false, pesan: "Lokasi ini masih dipakai laporan yang ada." };
     db.lokasi = db.lokasi.filter((l) => l !== nama);
     simpan();
+    awanHapus("lokasi", "nama", nama);
     return { ok: true };
   },
 
@@ -312,6 +422,7 @@ const Store = {
         });
       }
       db.laporan.push(laporan);
+      awanKirim("laporan", keBaris(laporan));
     });
     simpan();
     return { ok: true };
