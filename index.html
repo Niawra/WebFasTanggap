@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FasTanggap · Pelaporan Kerusakan Fasilitas Sekolah</title>
+    <meta
+      name="description"
+      content="FasTanggap mencatat laporan kerusakan fasilitas sekolah, meneruskannya ke petugas, dan memperlihatkan status penanganannya sampai selesai."
+    />
+    <meta name="theme-color" content="#DD3333" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Roboto:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/css/style.css" />
+  </head>
+  <body>
+    <a class="lewati" href="#konten">Lompat ke konten</a>
+
+    <header class="bilah" id="bilah">
+      <div class="bilah__isi">
+        <a class="merek" href="#/" aria-label="FasTanggap, ke beranda">
+          <span class="merek__simpul" aria-hidden="true"></span>
+          <span class="merek__teks">Fas<strong>Tanggap</strong></span>
+        </a>
+
+        <button class="menu-tombol" id="menuTombol" aria-expanded="false" aria-controls="navigasi" aria-label="Buka menu">
+          <span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span>
+        </button>
+
+        <nav class="navigasi" id="navigasi" aria-label="Navigasi utama">
+          <a href="#/" data-rute="/">Beranda</a>
+          <a href="#/lacak" data-rute="/lacak">Lacak laporan</a>
+          <div class="navigasi__aksi" id="navigasiAksi"></div>
+        </nav>
+      </div>
+    </header>
+
+    <main id="konten" tabindex="-1"></main>
+
+    <footer class="kaki">
+      <div class="kaki__isi">
+        <div class="kaki__kiri">
+          <span class="merek__simpul" aria-hidden="true"></span>
+          <span class="merek__teks">Fas<strong>Tanggap</strong></span>
+          <p>Pelaporan kerusakan fasilitas sekolah, dari laporan masuk sampai selesai ditangani.</p>
+        </div>
+        <nav class="kaki__tautan" aria-label="Navigasi kaki halaman">
+          <a href="#/lapor">Buat laporan</a>
+          <a href="#/lacak">Lacak laporan</a>
+          <a href="#/masuk">Masuk</a>
+        </nav>
+        <p class="kaki__kredit">
+          Tugas Pemodelan Sistem · XI PPLG 4 · SMK Telkom Purwokerto
+        </p>
+      </div>
+    </footer>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="assets/js/store.js"></script>
+    <script src="assets/js/app.js"></script>
+  </body>
+</html>
