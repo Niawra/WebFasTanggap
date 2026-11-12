@@ -79,7 +79,7 @@
 }
 /* Setelah digulir: pil menyempit, lebih pendek, dan tembus pandang seperti kaca. */
 .bilah--gulir .bilah__isi {
-  max-width: 1000px;
+  max-width: min(var(--lebar), 1040px);
   height: 54px;
   background: rgba(255, 255, 255, 0.78);
   backdrop-filter: saturate(160%) blur(14px);
@@ -204,6 +204,10 @@
 .navigasi > a,
 .bilah .tombol {
   white-space: nowrap;
+}
+/* Saat pil menyempit, nama pengguna disembunyikan supaya tombol tidak meluber. */
+.bilah--gulir .navigasi__siapa {
+  display: none;
 }
 @media (max-width: 1180px) and (min-width: 821px) {
   .navigasi__siapa {
