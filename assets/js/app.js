@@ -50,6 +50,25 @@ function namaKategori(id) {
   return k ? k.nama : "Kategori lain";
 }
 
+// Kategori di Supabase memakai id uuid, jadi ikon dipilih dari namanya.
+function kunciIkon(id) {
+  const k = Store.kategori().find((item) => item.id === id);
+  const n = (k ? k.nama : String(id || "")).toLowerCase();
+  if (/kipas/.test(n)) return "kipas";
+  if (/lampu|listrik/.test(n)) return "lampu";
+  if (/meja|kursi/.test(n)) return "meja";
+  if (/proyektor|layar/.test(n)) return "proyektor";
+  if (/komputer|pc|jaringan|wi-?fi/.test(n)) return "komputer";
+  if (/pintu|jendela/.test(n)) return "pintu";
+  if (/toilet|kran|air/.test(n)) return "toilet";
+  if (/^ac\b|pendingin/.test(n) || n === "ac") return "ac";
+  return IKON[n] ? n : "lain";
+}
+
+function sedangMemuat() {
+  akar.innerHTML = `<section class="halaman"><div class="bungkus sempit" style="padding-top:80px"><div class="memuat" role="status" aria-label="Memuat"><span></span><span></span></div></div></section>`;
+}
+
 function statusPil(status) {
   const s = STATUS[status] || STATUS.menunggu;
   return `<span class="status" data-nada="${s.nada}">${esc(s.label)}</span>`;
@@ -79,8 +98,8 @@ function gambarAksi() {
     <span class="navigasi__siapa" title="${esc(sesi.nama)}">${esc(sesi.nama)}</span>
     <a class="tombol tombol--garis tombol--kecil" href="${tujuan}">${label}</a>
     <button class="tombol tombol--teks tombol--kecil" type="button" id="keluarTombol">Keluar</button>`;
-  document.querySelector("#keluarTombol").addEventListener("click", () => {
-    Store.keluar();
+  document.querySelector("#keluarTombol").addEventListener("click", async () => {
+    await Store.keluar();
     gambarAksi();
     toast("Kamu sudah keluar.");
     location.hash = "#/";
@@ -142,6 +161,113 @@ const FAQ = [
   ["Berapa lama laporan diproses?", "Tergantung prioritas dan jenis kerusakan. Prioritas ditetapkan petugas setelah memeriksa laporan, dan setiap perubahan status tercatat lengkap dengan waktunya."],
 ];
 
+const BAB_CERITA = [
+  {
+    pendek: "Rusak",
+    judul: "Ada yang rusak di kelas.",
+    isi: "Kaki meja patah, kursi terguling, lampu mati, AC menetes. Biasanya cuma jadi keluhan di grup kelas, lalu dilupakan.",
+    status: "menunggu",
+    catatan: "Belum ada yang melaporkan.",
+  },
+  {
+    pendek: "Dilaporkan",
+    judul: "Kamu kirim laporan.",
+    isi: "Pilih kategori dan lokasi, tulis singkat, lampirkan foto. Laporan langsung dapat nomor dan masuk ke meja petugas.",
+    status: "menunggu",
+    catatan: "Laporan dikirim dan menunggu pemeriksaan petugas.",
+  },
+  {
+    pendek: "Diperiksa",
+    judul: "Petugas memeriksa.",
+    isi: "Petugas sarana mencocokkan laporan dengan kondisi di lokasi, lalu menandai kerusakan dan menetapkan prioritas.",
+    status: "menunggu",
+    catatan: "Laporan sesuai kondisi. Prioritas: tinggi.",
+  },
+  {
+    pendek: "Diproses",
+    judul: "Teknisi memperbaiki.",
+    isi: "Satu per satu dibetulkan: kaki meja dipasang lagi, kursi ditegakkan, lampu diganti, saluran AC dibersihkan.",
+    status: "diproses",
+    catatan: "Teknisi sedang memperbaiki di lokasi.",
+  },
+  {
+    pendek: "Selesai",
+    judul: "Kelas siap dipakai lagi.",
+    isi: "Laporan ditutup, dan riwayat serta catatan petugas tetap tersimpan. Lihat yang rusak? Laporkan, jangan cuma diceritakan.",
+    status: "selesai",
+    catatan: "Semua perbaikan selesai dan sudah diuji.",
+  },
+];
+
+// Hitung kemajuan gulir di dalam bagian cerita (0 sampai jumlah bab - 1).
+function progresCerita() {
+  const bagian = document.querySelector("#cerita");
+  if (!bagian) return 0;
+  const r = bagian.getBoundingClientRect();
+  const jarak = bagian.offsetHeight - innerHeight;
+  const t = Math.min(1, Math.max(0, -r.top / Math.max(1, jarak)));
+  return t * (BAB_CERITA.length - 1);
+}
+window.progresCerita = progresCerita;
+
+let pendengarCerita = null;
+
+function pasangCerita() {
+  const panggung = document.querySelector("#ceritaPanggung");
+  if (!panggung) return;
+  const bab = [...panggung.querySelectorAll(".cerita__bab")];
+  const titik = [...panggung.querySelectorAll("[data-ke-bab]")];
+  const status = panggung.querySelector("#ceritaStatus");
+  const catatan = panggung.querySelector("#ceritaCatatan");
+  const jejak = panggung.querySelector("#ceritaJejak");
+  const progres = panggung.querySelector("#ceritaProgres");
+  let aktif = -1;
+
+  const perbarui = () => {
+    if (!panggung.isConnected) {
+      removeEventListener("scroll", pendengarCerita);
+      return;
+    }
+    const p = progresCerita();
+    panggung.style.setProperty("--prog", (p / (BAB_CERITA.length - 1)).toFixed(4));
+    progres.style.transform = `scaleX(${p / (BAB_CERITA.length - 1)})`;
+    jejak.style.transform = `scaleX(${Math.min(1, p / (BAB_CERITA.length - 1))})`;
+    const i = Math.min(BAB_CERITA.length - 1, Math.round(p));
+    if (i === aktif) return;
+    aktif = i;
+    panggung.dataset.bab = i;
+    bab.forEach((el, j) => {
+      el.classList.toggle("aktif", j === i);
+      el.classList.toggle("lewat", j < i);
+      if (j === i) el.removeAttribute("aria-hidden");
+      else el.setAttribute("aria-hidden", "true");
+    });
+    titik.forEach((el, j) => {
+      el.classList.toggle("aktif", j === i);
+      el.classList.toggle("lewat", j < i);
+    });
+    status.innerHTML = i === 0 ? `<span class="status" data-nada="kosong">Belum dilaporkan</span>` : statusPil(BAB_CERITA[i].status);
+    catatan.textContent = BAB_CERITA[i].catatan;
+    catatan.classList.remove("ganti");
+    void catatan.offsetWidth;
+    catatan.classList.add("ganti");
+  };
+
+  if (pendengarCerita) removeEventListener("scroll", pendengarCerita);
+  pendengarCerita = () => requestAnimationFrame(perbarui);
+  addEventListener("scroll", pendengarCerita, { passive: true });
+  perbarui();
+
+  titik.forEach((el) =>
+    el.addEventListener("click", () => {
+      const bagian = document.querySelector("#cerita");
+      const jarak = bagian.offsetHeight - innerHeight;
+      const tujuan = bagian.offsetTop + (jarak * Number(el.dataset.keBab)) / (BAB_CERITA.length - 1);
+      scrollTo({ top: tujuan + 2, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    })
+  );
+}
+
 const LANGKAH = [
   { judul: "Kirim laporan", isi: "Pilih kategori, tulis lokasi dan keterangan, lampirkan foto bila ada. Nomor laporan langsung keluar.", status: "menunggu", catatan: "Laporan dikirim dan menunggu pemeriksaan petugas." },
   { judul: "Diverifikasi petugas", isi: "Petugas sarana mencocokkan laporan dengan kondisi di lokasi, lalu menetapkan prioritas.", status: "menunggu", catatan: "Laporan diperiksa. Prioritas: tinggi." },
@@ -169,7 +295,7 @@ function hentikanPemutar() {
 function barisPapan(l) {
   return `
     <li class="papan-langsung__baris">
-      <span class="papan-langsung__ikon">${ikon(l.kategoriId)}</span>
+      <span class="papan-langsung__ikon">${ikon(CONTOH_PAPAN.includes(l) ? l.kategoriId : kunciIkon(l.kategoriId))}</span>
       <span class="papan-langsung__teks">
         <b>${esc(l.judul)}</b>
         <small>${esc(l.kode)} · ${esc(l.lokasi)}</small>
@@ -181,17 +307,12 @@ function barisPapan(l) {
 function halamanBeranda(parameter) {
   hentikanPemutar();
   const hemat = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const r = Store.ringkasan();
+  const { r, jumlahPer, terbaru: semuaTerbaru } = Store.beranda();
   const sesi = Store.sesi();
   const kategori = Store.kategori();
-  const semua = Store.semuaLaporan();
-  const terbaru = semua.slice(0, 5);
-  const jumlahPer = {};
-  semua.forEach((l) => {
-    jumlahPer[l.kategoriId] = (jumlahPer[l.kategoriId] || 0) + 1;
-  });
-  const papan = semua.length >= 3 ? semua.slice(0, 6) : CONTOH_PAPAN;
-  const papanContoh = semua.length < 3;
+  const terbaru = semuaTerbaru.slice(0, 5);
+  const papan = semuaTerbaru.length >= 3 ? semuaTerbaru : CONTOH_PAPAN;
+  const papanContoh = semuaTerbaru.length < 3;
   const persen = (n) => (r.total ? (n / r.total) * 100 : 0);
   const akun = sesi ? (sesi.peran === "petugas" ? "#/petugas" : "#/laporan") : "#/daftar";
 
@@ -290,7 +411,7 @@ function halamanBeranda(parameter) {
             .map(
               (k, i) => `
             <a class="kategori-kartu" href="#/lapor?kategori=${encodeURIComponent(k.id)}" data-muncul style="--tunda:${(i % 3) * 0.07 + Math.floor(i / 3) * 0.05}s">
-              <span class="kategori-kartu__ikon">${ikon(k.id, "ikon ikon--gambar")}</span>
+              <span class="kategori-kartu__ikon">${ikon(kunciIkon(k.id), "ikon ikon--gambar")}</span>
               <span class="kategori-kartu__teks">
                 <b>${esc(k.nama)}</b>
                 <small>${esc(k.contoh)}</small>
@@ -304,45 +425,46 @@ function halamanBeranda(parameter) {
       </div>
     </section>
 
-    <section class="bagian bagian--hangat">
-      <div class="bungkus">
-        <div class="judul-bagian2" data-muncul>
-          <h2>Perjalanan satu laporan</h2>
-          <p>Empat tahap yang dilalui setiap laporan, dari HP kamu sampai selesai diperbaiki.</p>
-        </div>
-        <div class="tahapan" id="tahapan">
-          <ol class="tahapan__daftar" role="tablist" aria-label="Tahap penanganan">
-            ${LANGKAH.map(
-              (l, i) => `
-              <li>
-                <button type="button" role="tab" class="tahapan__tombol${i === 0 ? " aktif" : ""}" data-tahap="${i}" aria-selected="${i === 0}">
-                  <span class="tahapan__no">${i + 1}</span>
-                  <span class="tahapan__teks"><b>${l.judul}</b><small>${l.isi}</small></span>
-                  <span class="tahapan__waktu"><i></i></span>
-                </button>
-              </li>`
+    <section class="cerita" id="cerita" aria-label="Perjalanan satu laporan">
+      <div class="cerita__panggung" id="ceritaPanggung" data-bab="0">
+        <canvas class="cerita__kanvas" id="ceritaKanvas" aria-hidden="true"></canvas>
+        <div class="cerita__cadangan" aria-hidden="true"></div>
+        <div class="bungkus cerita__lapis">
+          <p class="cerita__label"><span class="simpul"></span>Perjalanan satu laporan</p>
+          <div class="cerita__teks">
+            ${BAB_CERITA.map(
+              (b, i) => `
+              <article class="cerita__bab" data-bab="${i}" ${i ? 'aria-hidden="true"' : ""}>
+                <span class="cerita__no">${String(i + 1).padStart(2, "0")} / ${String(BAB_CERITA.length).padStart(2, "0")}</span>
+                <h2>${b.judul}</h2>
+                <p>${b.isi}</p>
+              </article>`
             ).join("")}
-          </ol>
-          <div class="tahapan__layar" data-muncul="kanan">
-            <article class="slip-demo" id="slipDemo" aria-live="polite">
-              <header>
-                <span class="slip-demo__kode">FT-2611-012</span>
-                <span id="slipStatus">${statusPil("menunggu")}</span>
-              </header>
-              <h3>AC ruang kelas tidak dingin</h3>
-              <p class="slip-demo__meta">AC dan pendingin · Ruang kelas XI PPLG 4</p>
-              <div class="slip-demo__jejak" id="slipJejak" style="--maju:0">
-                <span>Dikirim</span><span>Diperiksa</span><span>Diproses</span><span>Selesai</span>
-              </div>
-              <div class="slip-demo__catatan">
-                <small>Catatan terakhir</small>
-                <p id="slipCatatan">${LANGKAH[0].catatan}</p>
-              </div>
-              <div class="slip-demo__cap" id="slipCap" aria-hidden="true">SELESAI</div>
-            </article>
           </div>
+          <aside class="cerita__tiket" aria-live="polite">
+            <header>
+              <span class="cerita__kode">FT-2611-012</span>
+              <span id="ceritaStatus">${statusPil("menunggu")}</span>
+            </header>
+            <b>Meja &amp; kursi kelas rusak, lampu mati</b>
+            <small>Meja dan kursi · Ruang kelas XI PPLG 4</small>
+            <div class="cerita__jejak"><i id="ceritaJejak"></i></div>
+            <p id="ceritaCatatan">Belum ada yang melaporkan.</p>
+            <span class="cerita__cap" aria-hidden="true">SELESAI</span>
+          </aside>
+          <nav class="cerita__rel" aria-label="Lompat ke tahap">
+            ${BAB_CERITA.map((b, i) => `<button type="button" data-ke-bab="${i}" aria-label="Tahap ${i + 1}: ${b.judul}"><span>${b.pendek}</span></button>`).join("")}
+          </nav>
+          <a class="tombol tombol--utama cerita__ajak" href="#/lapor">Laporkan kerusakan di sekolahmu</a>
+          <div class="cerita__gulir" aria-hidden="true"><span></span>Gulir untuk memperbaiki</div>
         </div>
-        <details class="figur-lipat" data-muncul>
+        <div class="cerita__progres" aria-hidden="true"><i id="ceritaProgres"></i></div>
+      </div>
+    </section>
+
+    <section class="bagian bagian--hangat bagian--rapat">
+      <div class="bungkus">
+        <details class="figur-lipat">
           <summary>Lihat alurnya sebagai figur isometrik</summary>
           <div class="alur-figur">
             <iframe
@@ -485,50 +607,8 @@ function halamanBeranda(parameter) {
     }
   }
 
-  /* --- Tahapan: berganti otomatis, bisa diklik --- */
-  const tombolTahap = [...document.querySelectorAll(".tahapan__tombol")];
-  const slipStatus = document.querySelector("#slipStatus");
-  const slipCatatan = document.querySelector("#slipCatatan");
-  const slipJejak = document.querySelector("#slipJejak");
-  const slipCap = document.querySelector("#slipCap");
-  const slip = document.querySelector("#slipDemo");
-  let tahap = 0;
-  const pilihTahap = (i) => {
-    tahap = i;
-    tombolTahap.forEach((b, j) => {
-      b.classList.toggle("aktif", j === i);
-      b.classList.toggle("lewat", j < i);
-      b.setAttribute("aria-selected", String(j === i));
-    });
-    slipStatus.innerHTML = statusPil(LANGKAH[i].status);
-    slipCatatan.textContent = LANGKAH[i].catatan;
-    slipJejak.style.setProperty("--maju", i / 3);
-    slipCap.classList.toggle("tampil", i === 3);
-    slip.classList.remove("getar");
-    void slip.offsetWidth;
-    slip.classList.add("getar");
-  };
-  let lanjutOtomatis = !hemat;
-  tombolTahap.forEach((b, i) =>
-    b.addEventListener("click", () => {
-      lanjutOtomatis = false;
-      document.querySelector("#tahapan").classList.add("manual");
-      pilihTahap(i);
-    })
-  );
-  // Mulai berputar hanya setelah bagian ini terlihat.
-  const pengamatTahap = new IntersectionObserver(([e]) => {
-    if (!e.isIntersecting) return;
-    pengamatTahap.disconnect();
-    pilihTahap(0);
-    pemutarBeranda.push(
-      setInterval(() => {
-        if (!slip.isConnected) return hentikanPemutar();
-        if (lanjutOtomatis) pilihTahap((tahap + 1) % LANGKAH.length);
-      }, 3800)
-    );
-  }, { threshold: 0.4 });
-  pengamatTahap.observe(document.querySelector("#tahapan"));
+  /* --- Cerita perbaikan: bab mengikuti posisi gulir --- */
+  pasangCerita();
 
   if (parameter && parameter.get("ke") === "faq") {
     setTimeout(() => document.querySelector("#faq").scrollIntoView({ behavior: "smooth" }), 60);
@@ -566,9 +646,9 @@ function halamanDaftar() {
               </div>
             </div>
             <div class="medan">
-              <label for="dPengguna">Nama pengguna <span class="medan__wajib">(wajib)</span></label>
-              <input type="text" id="dPengguna" autocomplete="username" maxlength="30" />
-              <p class="medan__bantuan">Huruf kecil, angka, titik, atau garis bawah. Minimal 3 karakter.</p>
+              <label for="dPengguna">Email <span class="medan__wajib">(wajib)</span></label>
+              <input type="email" id="dPengguna" autocomplete="email" maxlength="80" placeholder="nama@contoh.com" />
+              <p class="medan__bantuan">Dipakai untuk masuk ke FasTanggap.</p>
               <p class="medan__galat" id="gPengguna" role="alert"></p>
             </div>
             <div class="medan__baris">
@@ -602,13 +682,13 @@ function halamanDaftar() {
       </div>
     </section>`;
 
-  document.querySelector("#formDaftar").addEventListener("submit", (e) => {
+  document.querySelector("#formDaftar").addEventListener("submit", async (e) => {
     e.preventDefault();
     const nilai = (id) => document.querySelector(id).value;
     const galat = {};
     if (nilai("#dNama").trim().length < 3) galat.gNama = "Nama minimal 3 karakter.";
     if (!nilai("#dKelas").trim()) galat.gKelas = "Kelas belum diisi.";
-    if (!/^[a-z0-9._]{3,30}$/.test(nilai("#dPengguna").trim().toLowerCase())) galat.gPengguna = "Nama pengguna tidak valid.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nilai("#dPengguna").trim())) galat.gPengguna = "Format email belum benar.";
     if (nilai("#dSandi").length < 6) galat.gSandi = "Kata sandi minimal 6 karakter.";
     if (nilai("#dUlang") !== nilai("#dSandi")) galat.gUlang = "Kata sandi tidak sama.";
 
@@ -626,12 +706,17 @@ function halamanDaftar() {
       return;
     }
 
-    const hasil = Store.daftar({
+    const tombolDaftar = document.querySelector("#formDaftar button[type=submit]");
+    tombolDaftar.disabled = true;
+    tombolDaftar.textContent = "Membuat akun...";
+    const hasil = await Store.daftar({
       nama: nilai("#dNama"),
       kelas: nilai("#dKelas"),
-      namaPengguna: nilai("#dPengguna"),
+      email: nilai("#dPengguna"),
       sandi: nilai("#dSandi"),
     });
+    tombolDaftar.disabled = false;
+    tombolDaftar.textContent = "Buat akun";
     if (!hasil.ok) {
       const kotak = document.querySelector("#gDaftar");
       kotak.textContent = hasil.pesan;
@@ -730,8 +815,8 @@ function halamanMasuk() {
           </div>
           <form class="formulir" id="formMasuk" novalidate>
             <div class="medan">
-              <label for="namaPengguna">Nama pengguna</label>
-              <input type="text" id="namaPengguna" name="namaPengguna" autocomplete="username" />
+              <label for="namaPengguna">Email</label>
+              <input type="email" id="namaPengguna" name="namaPengguna" autocomplete="email" placeholder="nama@contoh.com" />
               <p class="medan__galat" id="galatNama" role="alert"></p>
             </div>
             <div class="medan">
@@ -747,29 +832,22 @@ function halamanMasuk() {
           </form>
         </div>
         <aside class="kartu kartu-isi">
-          <h2>Akun demo</h2>
-          <p>Halaman ini belum memakai server. Akun di bawah hanya untuk mencoba alur, dan datanya tersimpan di browser ini.</p>
-          <dl class="detail__meta" style="margin-top:0;padding-top:0;border-top:0">
-            <dt>Siswa</dt><dd><b>siswa</b> / siswa123</dd>
-            <dt>Petugas</dt><dd><b>petugas</b> / petugas123</dd>
-          </dl>
+          <h2>Belum punya akun?</h2>
+          <p>Siswa bisa mendaftar sendiri dengan email. Akun petugas dibuat oleh sekolah.</p>
           <p style="margin-top:18px">
-            <button class="tombol tombol--garis tombol--kecil" type="button" id="isiSiswa">Isi akun siswa</button>
-            <button class="tombol tombol--garis tombol--kecil" type="button" id="isiPetugas">Isi akun petugas</button>
+            <a class="tombol tombol--garis tombol--kecil" href="#/daftar">Daftar akun siswa</a>
+            <button class="tombol tombol--teks tombol--kecil" type="button" id="isiPetugas">Isi email petugas demo</button>
           </p>
         </aside>
       </div>
     </section>`;
 
-  const isi = (u, s) => {
-    document.querySelector("#namaPengguna").value = u;
-    document.querySelector("#sandi").value = s;
-    document.querySelector("#namaPengguna").focus();
-  };
-  document.querySelector("#isiSiswa").addEventListener("click", () => isi("siswa", "siswa123"));
-  document.querySelector("#isiPetugas").addEventListener("click", () => isi("petugas", "petugas123"));
+  document.querySelector("#isiPetugas").addEventListener("click", () => {
+    document.querySelector("#namaPengguna").value = "petugas@fastanggap.test";
+    document.querySelector("#sandi").focus();
+  });
 
-  document.querySelector("#formMasuk").addEventListener("submit", (e) => {
+  document.querySelector("#formMasuk").addEventListener("submit", async (e) => {
     e.preventDefault();
     const u = document.querySelector("#namaPengguna");
     const s = document.querySelector("#sandi");
@@ -780,7 +858,7 @@ function halamanMasuk() {
 
     if (!u.value.trim() || !s.value) {
       if (!u.value.trim()) {
-        document.querySelector("#galatNama").textContent = "Nama pengguna belum diisi.";
+        document.querySelector("#galatNama").textContent = "Email belum diisi.";
         document.querySelector("#galatNama").classList.add("tampil");
         u.setAttribute("aria-invalid", "true");
         u.focus();
@@ -793,7 +871,12 @@ function halamanMasuk() {
       return;
     }
 
-    const hasil = Store.masuk(u.value, s.value);
+    const tombolMasuk = document.querySelector("#formMasuk button[type=submit]");
+    tombolMasuk.disabled = true;
+    tombolMasuk.textContent = "Memeriksa...";
+    const hasil = await Store.masuk(u.value, s.value);
+    tombolMasuk.disabled = false;
+    tombolMasuk.textContent = "Masuk";
     if (!hasil.ok) {
       galatMasuk.textContent = hasil.pesan;
       galatMasuk.hidden = false;
@@ -870,10 +953,10 @@ function halamanLapor() {
               </div>
               <div class="medan">
                 <label for="lokasi">Lokasi <span class="medan__wajib">(wajib)</span></label>
-                <input type="text" id="lokasi" name="lokasi" list="daftarLokasi" placeholder="Contoh: Lab Komputer 1" />
-                <datalist id="daftarLokasi">
-                  ${Store.lokasi().map((l) => `<option value="${esc(l)}"></option>`).join("")}
-                </datalist>
+                <select id="lokasi" name="lokasi">
+                  <option value="">Pilih lokasi</option>
+                  ${Store.lokasi().map((l) => `<option value="${esc(l)}">${esc(l)}</option>`).join("")}
+                </select>
                 <p class="medan__galat" id="galatLokasi" role="alert"></p>
               </div>
             </div>
@@ -966,7 +1049,7 @@ function halamanLapor() {
     const deskripsi = document.querySelector("#deskripsi");
     const pasangan = [
       [kategori, "galatKategori", "Pilih kategori fasilitas dulu.", (v) => v !== ""],
-      [lokasi, "galatLokasi", "Lokasi belum diisi.", (v) => v.trim().length >= 3],
+      [lokasi, "galatLokasi", "Pilih lokasi dulu.", (v) => v !== ""],
       [judul, "galatJudul", "Judul minimal 6 karakter.", (v) => v.trim().length >= 6],
       [deskripsi, "galatDeskripsi", "Deskripsi minimal 15 karakter.", (v) => v.trim().length >= 15],
     ];
@@ -993,11 +1076,14 @@ function halamanLapor() {
     tombol.disabled = true;
     tombol.textContent = "Mengirim...";
 
-    setTimeout(() => {
-      const hasil = Store.tambahLaporan(
-        { kategoriId: kategori.value, lokasi: lokasi.value, judul: judul.value, deskripsi: deskripsi.value, foto: fotoData },
-        Store.sesi()
-      );
+    (async () => {
+      const hasil = await Store.tambahLaporan({
+        kategoriId: kategori.value,
+        lokasi: lokasi.value,
+        judul: judul.value,
+        deskripsi: deskripsi.value,
+        foto: fotoData,
+      });
       tombol.disabled = false;
       tombol.textContent = "Kirim laporan";
       if (!hasil.ok) {
@@ -1006,7 +1092,7 @@ function halamanLapor() {
       }
       toast(`Laporan ${hasil.laporan.kode} terkirim.`);
       location.hash = `#/laporan/${encodeURIComponent(hasil.laporan.kode)}?baru=1`;
-    }, 480);
+    })();
   });
 }
 
@@ -1085,15 +1171,19 @@ function halamanLaporanSaya() {
 
 /* ---------- Halaman: detail laporan ------------------------------------- */
 
-function halamanDetail(kode, baru) {
+async function halamanDetail(kode, baru) {
   const sesi = Store.sesi();
-  const laporan = Store.cariKode(kode);
+  let laporan = Store.cariKode(kode);
+  if (!laporan) {
+    sedangMemuat();
+    laporan = await Store.cariKodeJauh(kode);
+  }
   if (!laporan) {
     akar.innerHTML = `
       <section class="halaman">
         <div class="bungkus sempit">
           <div class="halaman__kepala"><div><h1>Laporan tidak ditemukan</h1></div></div>
-          <div class="galat-kotak">Nomor <strong>${esc(kode)}</strong> tidak ada di perangkat ini. Mungkin laporan dibuat di browser lain.</div>
+          <div class="galat-kotak">Nomor <strong>${esc(kode)}</strong> tidak ditemukan. Periksa kembali nomornya.</div>
           <p style="margin-top:20px"><a class="tombol tombol--garis" href="#/lacak">Cari nomor lain</a></p>
         </div>
       </section>`;
@@ -1127,7 +1217,7 @@ function halamanDetail(kode, baru) {
                 : `<p class="medan__bantuan" style="margin-top:20px">Laporan ini dikirim tanpa foto.</p>`
             }
             <dl class="detail__meta">
-              <dt>Kategori</dt><dd>${esc(namaKategori(laporan.kategoriId))}</dd>
+              <dt>Kategori</dt><dd>${esc(laporan.kategoriNama || namaKategori(laporan.kategoriId))}</dd>
               <dt>Lokasi</dt><dd>${esc(laporan.lokasi)}</dd>
               <dt>Pelapor</dt><dd>${esc(laporan.pelaporNama)}${laporan.pelaporKelas ? ` · ${esc(laporan.pelaporKelas)}` : ""}</dd>
               <dt>Prioritas</dt><dd>${
@@ -1253,7 +1343,7 @@ function bukaTindakan(kode) {
     }
   });
 
-  dialog.querySelector("#formTindakan").addEventListener("submit", (e) => {
+  dialog.querySelector("#formTindakan").addEventListener("submit", async (e) => {
     e.preventDefault();
     const status = dialog.querySelector("#statusBaru").value;
     const prioritas = dialog.querySelector("#prioritasBaru").value;
@@ -1266,7 +1356,12 @@ function bukaTindakan(kode) {
       catatan.focus();
       return;
     }
-    const hasil = Store.ubahStatus(kode, status, catatan.value, prioritas, Store.sesi().nama);
+    const tombolSimpan = dialog.querySelector("#formTindakan button[type=submit]");
+    tombolSimpan.disabled = true;
+    tombolSimpan.textContent = "Menyimpan...";
+    const hasil = await Store.ubahStatus(kode, status, catatan.value, prioritas);
+    tombolSimpan.disabled = false;
+    tombolSimpan.textContent = "Simpan perubahan";
     if (!hasil.ok) {
       toast(hasil.pesan, "galat");
       return;
@@ -1406,8 +1501,15 @@ function halamanPetugas() {
   });
   const muat = document.querySelector("#muatContoh");
   if (muat) {
-    muat.addEventListener("click", () => {
-      Store.muatContoh();
+    muat.addEventListener("click", async () => {
+      muat.disabled = true;
+      muat.textContent = "Membuat laporan contoh...";
+      const hasil = await Store.muatContoh();
+      if (!hasil.ok) {
+        toast(hasil.pesan, "galat");
+        muat.disabled = false;
+        return;
+      }
       toast("5 laporan contoh dimuat untuk demo.");
       halamanPetugas();
     });
@@ -1580,8 +1682,8 @@ function halamanKategori() {
       </section>`;
 
     akar.querySelectorAll("[data-hapus-kategori]").forEach((b) => {
-      b.addEventListener("click", () => {
-        const hasil = Store.hapusKategori(b.dataset.hapusKategori);
+      b.addEventListener("click", async () => {
+        const hasil = await Store.hapusKategori(b.dataset.hapusKategori);
         if (!hasil.ok) {
           toast(hasil.pesan, "galat");
           return;
@@ -1591,8 +1693,8 @@ function halamanKategori() {
       });
     });
     akar.querySelectorAll("[data-hapus-lokasi]").forEach((b) => {
-      b.addEventListener("click", () => {
-        const hasil = Store.hapusLokasi(b.dataset.hapusLokasi);
+      b.addEventListener("click", async () => {
+        const hasil = await Store.hapusLokasi(b.dataset.hapusLokasi);
         if (!hasil.ok) {
           toast(hasil.pesan, "galat");
           return;
@@ -1602,7 +1704,7 @@ function halamanKategori() {
       });
     });
 
-    document.querySelector("#formKategori").addEventListener("submit", (e) => {
+    document.querySelector("#formKategori").addEventListener("submit", async (e) => {
       e.preventDefault();
       const nama = document.querySelector("#namaKategori");
       const contoh = document.querySelector("#contohKategori");
@@ -1614,7 +1716,7 @@ function halamanKategori() {
         nama.focus();
         return;
       }
-      const hasil = Store.tambahKategori(nama.value, contoh.value);
+      const hasil = await Store.tambahKategori(nama.value, contoh.value);
       if (!hasil.ok) {
         galat.textContent = hasil.pesan;
         galat.classList.add("tampil");
@@ -1626,7 +1728,7 @@ function halamanKategori() {
       gambar();
     });
 
-    document.querySelector("#formLokasi").addEventListener("submit", (e) => {
+    document.querySelector("#formLokasi").addEventListener("submit", async (e) => {
       e.preventDefault();
       const nama = document.querySelector("#namaLokasi");
       const galat = document.querySelector("#galatLokasiBaru");
@@ -1637,7 +1739,7 @@ function halamanKategori() {
         nama.focus();
         return;
       }
-      const hasil = Store.tambahLokasi(nama.value);
+      const hasil = await Store.tambahLokasi(nama.value);
       if (!hasil.ok) {
         galat.textContent = hasil.pesan;
         galat.classList.add("tampil");
@@ -1667,9 +1769,15 @@ const judulHalaman = {
   "/petugas/kategori": "Kategori dan lokasi · FasTanggap",
 };
 
-function gambarRute() {
+let nomorRute = 0;
+
+async function gambarRute() {
   const mentah = location.hash.replace(/^#/, "") || "/";
   const [jalur, kueri] = mentah.split("?");
+  const nomor = ++nomorRute;
+  await Store.segarkan(jalur);
+  if (nomor !== nomorRute) return; // pengguna sudah pindah halaman lagi
+  gambarAksi();
   const bagian = jalur.split("/").filter(Boolean);
   const parameter = new URLSearchParams(kueri || "");
 
@@ -1741,8 +1849,10 @@ window.addEventListener("hashchange", () => {
   window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
 });
 
-gambarAksi();
-gambarRute();
-Store.siapkan().then((berubah) => {
-  if (berubah) gambarRute();
-});
+sedangMemuat();
+Store.siapkan()
+  .catch((galat) => console.warn("[FasTanggap] gagal menyiapkan data", galat))
+  .then(() => {
+    gambarAksi();
+    gambarRute();
+  });

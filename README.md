@@ -16,16 +16,24 @@ Lalu buka `http://localhost:8000`.
 
 Membuka `index.html` langsung lewat `file://` juga bisa, tetapi sebagian perilaku browser lebih ketat, jadi server lokal lebih aman.
 
-## Akun demo
+## Data dan akun
 
-| Peran | Nama pengguna | Kata sandi |
-|---|---|---|
-| Siswa | `siswa` | `siswa123` |
-| Petugas sekolah | `petugas` | `petugas123` |
+Website memakai Supabase. Alamat project dan anon key ada di `assets/js/config.js`.
 
-Siswa juga bisa membuat akun sendiri lewat `#/daftar`.
+Tabel yang dipakai: `profiles`, `reports`, `categories`, `locations`, `report_status_history`,
+`report_notes`, dan storage `report-photos`. Aturan akses (RLS) membuat siswa hanya melihat
+laporannya sendiri, sedangkan petugas melihat semua laporan.
 
-Secara bawaan data disimpan di `localStorage` browser. Kalau `anonKey` di `assets/js/config.js` diisi dan `supabase/schema.sql` sudah dijalankan di Supabase, laporan, kategori, dan lokasi ikut tersimpan di Supabase (akun tetap lokal).
+Tambahan dari website ini (sudah dijalankan di Supabase):
+
+- `supabase/migrasi-website.sql`: kolom `reports.code` (nomor FT-YYMM-NNN), serta fungsi
+  `lacak_laporan()` dan `ringkasan_publik()` supaya pengunjung bisa melacak laporan dan melihat
+  beranda tanpa login. Nama pelapor tidak ikut dibuka.
+- `supabase/migrasi-akun.sql`: akun baru langsung aktif tanpa konfirmasi email (mode tugas/demo),
+  dan menjadikan akun `petugas@fastanggap.test` sebagai petugas.
+
+Siswa mendaftar sendiri lewat `#/daftar` dengan email. Kata sandi akun uji ada di file lokal
+`akun-uji.local.md`, yang sengaja tidak ikut ke git.
 
 Kalau dasbor petugas masih kosong, ada tombol **Muat 5 laporan contoh (demo)** untuk mengisi data percobaan.
 
@@ -64,8 +72,8 @@ assets/css/style.css    tampilan dasar dan halaman dalam
 assets/css/portal.css   struktur portal: bilah info, spanduk, kartu layanan, footer
 assets/js/config.js     alamat dan kunci Supabase
 assets/js/gerak.js      animasi muncul saat digulir dan angka berhitung
-supabase/schema.sql     tabel Supabase
-assets/js/store.js      data, akun, dan aturan status
+supabase/migrasi-*.sql  tambahan untuk database Supabase
+assets/js/store.js      data dan akun dari Supabase
 assets/js/app.js        rute, tampilan, dan interaksi
 figure/build.mjs        pembangun figur isometrik
 figure/triage.html      figur hasil build (dipakai iframe)
@@ -88,6 +96,5 @@ Warna diturunkan dari `telkomschools.sch.id`: merah `#DD3333`, tinta `#2E2E2E`, 
 
 ## Batasan
 
-- Tanpa anon key Supabase, semua data hanya ada di browser.
-- Kata sandi disimpan apa adanya di `localStorage`. Ini hanya untuk demonstrasi.
-- Data hilang kalau penyimpanan browser dibersihkan.
+- Konfirmasi email dimatikan lewat trigger `auto_confirm_email`. Hapus trigger itu kalau website dipakai sungguhan.
+- Website butuh koneksi internet karena data dan library Supabase dimuat dari jaringan.
