@@ -67,6 +67,15 @@
     });
   }
 
+  // Kartu kategori: warna merah menyebar dari titik kursor masuk.
+  konten.addEventListener("pointerover", (e) => {
+    const kartu = e.target.closest(".kategori-kartu");
+    if (!kartu || kartu.contains(e.relatedTarget)) return;
+    const r = kartu.getBoundingClientRect();
+    kartu.style.setProperty("--x", `${e.clientX - r.left}px`);
+    kartu.style.setProperty("--y", `${e.clientY - r.top}px`);
+  });
+
   new MutationObserver(siapkanHalaman).observe(konten, { childList: true });
   siapkanHalaman();
 
