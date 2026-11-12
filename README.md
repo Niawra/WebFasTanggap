@@ -23,7 +23,9 @@ Membuka `index.html` langsung lewat `file://` juga bisa, tetapi sebagian perilak
 | Siswa | `siswa` | `siswa123` |
 | Petugas sekolah | `petugas` | `petugas123` |
 
-Belum ada server. Semua data disimpan di `localStorage` browser, jadi laporan yang kamu buat hanya terlihat di browser itu. Ini cukup untuk memperagakan alur, bukan untuk dipakai sekolah sungguhan.
+Siswa juga bisa membuat akun sendiri lewat `#/daftar`.
+
+Secara bawaan data disimpan di `localStorage` browser. Kalau `anonKey` di `assets/js/config.js` diisi dan `supabase/schema.sql` sudah dijalankan di Supabase, laporan, kategori, dan lokasi ikut tersimpan di Supabase (akun tetap lokal).
 
 Kalau dasbor petugas masih kosong, ada tombol **Muat 5 laporan contoh (demo)** untuk mengisi data percobaan.
 
@@ -58,7 +60,11 @@ Activity diagram-nya digambarkan sebagai figur isometrik di bagian **Bagaimana s
 
 ```
 index.html              kerangka halaman
-assets/css/style.css    seluruh tampilan
+assets/css/style.css    tampilan dasar dan halaman dalam
+assets/css/portal.css   struktur portal: bilah info, spanduk, kartu layanan, footer
+assets/js/config.js     alamat dan kunci Supabase
+assets/js/gerak.js      animasi muncul saat digulir dan angka berhitung
+supabase/schema.sql     tabel Supabase
 assets/js/store.js      data, akun, dan aturan status
 assets/js/app.js        rute, tampilan, dan interaksi
 figure/build.mjs        pembangun figur isometrik
@@ -82,6 +88,6 @@ Warna diturunkan dari `telkomschools.sch.id`: merah `#DD3333`, tinta `#2E2E2E`, 
 
 ## Batasan
 
-- Tidak ada server, tidak ada basis data, dan tidak ada unggahan berkas sungguhan.
+- Tanpa anon key Supabase, semua data hanya ada di browser.
 - Kata sandi disimpan apa adanya di `localStorage`. Ini hanya untuk demonstrasi.
 - Data hilang kalau penyimpanan browser dibersihkan.

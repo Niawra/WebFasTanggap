@@ -317,6 +317,23 @@ const Store = {
     return { ok: true, pengguna: sesi };
   },
 
+  daftar({ nama, kelas, namaPengguna, sandi }) {
+    const pengguna = String(namaPengguna).trim().toLowerCase();
+    if (muat().pengguna.some((p) => p.namaPengguna.toLowerCase() === pengguna)) {
+      return { ok: false, pesan: "Nama pengguna itu sudah dipakai. Coba yang lain." };
+    }
+    db.pengguna.push({
+      id: `u-${Date.now()}`,
+      nama: nama.trim(),
+      namaPengguna: pengguna,
+      sandi,
+      peran: "siswa",
+      kelas: kelas.trim(),
+    });
+    if (!simpan()) return { ok: false, pesan: "Penyimpanan browser penuh." };
+    return this.masuk(pengguna, sandi);
+  },
+
   keluar() {
     sesi = null;
     localStorage.removeItem(`${KUNCI}.sesi`);

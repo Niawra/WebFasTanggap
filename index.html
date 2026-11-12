@@ -16,16 +16,29 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="assets/css/style.css" />
-    <link rel="stylesheet" href="assets/css/gerak.css" />
+    <link rel="stylesheet" href="assets/css/portal.css" />
   </head>
   <body>
     <a class="lewati" href="#konten">Lompat ke konten</a>
 
+    <div class="bilah-info">
+      <div class="bilah-info__isi">
+        <span>SMK Telkom Purwokerto · Layanan Sarana dan Prasarana</span>
+        <span class="bilah-info__kanan">
+          <a href="#/lacak">Lacak laporan</a>
+          <a href="#/?ke=faq">Bantuan</a>
+        </span>
+      </div>
+    </div>
+
     <header class="bilah" id="bilah">
       <div class="bilah__isi">
         <a class="merek" href="#/" aria-label="FasTanggap, ke beranda">
-          <span class="merek__simpul" aria-hidden="true"></span>
-          <span class="merek__teks">Fas<strong>Tanggap</strong></span>
+          <span class="merek__logo" aria-hidden="true">FT</span>
+          <span class="merek__tumpuk">
+            <span class="merek__teks">Fas<strong>Tanggap</strong></span>
+            <small>Pelaporan Kerusakan Fasilitas</small>
+          </span>
         </a>
 
         <button class="menu-tombol" id="menuTombol" aria-expanded="false" aria-controls="navigasi" aria-label="Buka menu">
@@ -34,7 +47,9 @@
 
         <nav class="navigasi" id="navigasi" aria-label="Navigasi utama">
           <a href="#/" data-rute="/">Beranda</a>
+          <a href="#/lapor" data-rute="/lapor">Buat laporan</a>
           <a href="#/lacak" data-rute="/lacak">Lacak laporan</a>
+          <a href="#/?ke=faq">Bantuan</a>
           <div class="navigasi__aksi" id="navigasiAksi"></div>
         </nav>
       </div>
@@ -44,24 +59,47 @@
 
     <footer class="kaki">
       <div class="kaki__isi">
-        <div class="kaki__kiri">
-          <span class="merek__simpul" aria-hidden="true"></span>
-          <span class="merek__teks">Fas<strong>Tanggap</strong></span>
-          <p>Pelaporan kerusakan fasilitas sekolah, dari laporan masuk sampai selesai ditangani.</p>
+        <div class="kaki__merek">
+          <a class="merek merek--terang" href="#/">
+            <span class="merek__logo" aria-hidden="true">FT</span>
+            <span class="merek__tumpuk">
+              <span class="merek__teks">Fas<strong>Tanggap</strong></span>
+              <small>SMK Telkom Purwokerto</small>
+            </span>
+          </a>
+          <p>Sistem pelaporan kerusakan fasilitas sekolah. Laporan dari siswa diterima petugas sarana, ditindaklanjuti, dan bisa dipantau sampai selesai.</p>
         </div>
-        <nav class="kaki__tautan" aria-label="Navigasi kaki halaman">
+        <nav class="kaki__kolom" aria-label="Layanan">
+          <h2>Layanan</h2>
           <a href="#/lapor">Buat laporan</a>
           <a href="#/lacak">Lacak laporan</a>
-          <a href="#/masuk">Masuk</a>
+          <a href="#/laporan">Laporan saya</a>
+          <a href="#/?ke=faq">Bantuan</a>
         </nav>
-        <p class="kaki__kredit">
-          Tugas Pemodelan Sistem · XI PPLG 4 · SMK Telkom Purwokerto
-        </p>
+        <nav class="kaki__kolom" aria-label="Akun">
+          <h2>Akun</h2>
+          <a href="#/masuk">Masuk</a>
+          <a href="#/daftar">Daftar akun siswa</a>
+          <a href="#/petugas">Dasbor petugas</a>
+        </nav>
+        <div class="kaki__kolom">
+          <h2>Tentang</h2>
+          <p>Dibuat untuk tugas Pemodelan Sistem kelas XI PPLG 4, SMK Telkom Purwokerto.</p>
+        </div>
+      </div>
+      <div class="kaki__bawah">
+        <div class="kaki__bawah-isi">
+          <span>&copy; <span id="tahun"></span> FasTanggap</span>
+          <span>Tugas Pemodelan Sistem · XI PPLG 4</span>
+        </div>
       </div>
     </footer>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+    <script>
+      document.getElementById("tahun").textContent = new Date().getFullYear();
+    </script>
     <script src="assets/js/config.js"></script>
     <script src="assets/js/store.js"></script>
     <script src="assets/js/app.js"></script>
