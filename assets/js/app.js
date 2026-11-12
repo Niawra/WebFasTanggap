@@ -268,6 +268,152 @@ function pasangCerita() {
   );
 }
 
+/* Tirai + kapsul: hero diam di tempat, kapsul naik menutupinya. Bentuk merah
+   lalu pindah dari kanan ke tengah, membesar (zoom in), menyedot gelembung
+   keluhan, berubah jadi formulir yang terisi sendiri, terkirim, dan akhirnya
+   mengecil (zoom out) menjadi tiket yang masuk ke meja petugas. */
+let pendengarKapsul = null;
+
+function pasangKapsul() {
+  const bagian = document.querySelector("#kapsul");
+  if (!bagian) return;
+  const pembuka = document.querySelector("#pembuka");
+  const panggung = bagian.querySelector("#kapsulPanggung");
+  const bentuk = bagian.querySelector("#kapsulBentuk");
+  const isi = bagian.querySelector("#kapsulIsi");
+  const teks = bagian.querySelector(".kapsul__teks");
+  const kartu = bagian.querySelector(".kapsul__kartu");
+  const gelembung = [...bagian.querySelectorAll(".kapsul__gel")];
+  const el = {
+    kat: bagian.querySelector("#kapKat"),
+    lok: bagian.querySelector("#kapLok"),
+    ket: bagian.querySelector("#kapKet"),
+    foto: bagian.querySelector("#kapFoto"),
+    kirim: bagian.querySelector("#kapKirim"),
+    tiket: bagian.querySelector("#kapTiket"),
+  };
+  const hemat = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const TEKS = { kat: "AC dan pendingin", lok: "Ruang kelas XI PPLG 4", ket: "AC menetes dan tidak dingin sejak Senin." };
+  const jepit = (n) => Math.min(1, Math.max(0, n));
+  const antara = (p, a, b) => jepit((p - a) / (b - a));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const keluar = (t) => 1 - Math.pow(1 - t, 3);
+  const halus = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+  const ketik = (node, teks, t) => {
+    node.textContent = teks.slice(0, Math.round(teks.length * jepit(t)));
+  };
+
+  // Diukur ulang saat ukuran layar berubah, bukan tiap frame.
+  let tiraiAktif = false;
+  let vektor = [];
+  const ukur = () => {
+    tiraiAktif = !!pembuka && getComputedStyle(pembuka).position === "sticky";
+    if (pembuka && !tiraiAktif) {
+      pembuka.style.transform = "";
+      pembuka.style.opacity = "";
+    }
+    const cx = panggung.clientWidth / 2;
+    const cy = panggung.clientHeight / 2;
+    vektor = gelembung.map((g) => [cx - (g.offsetLeft + g.offsetWidth / 2), cy - (g.offsetTop + g.offsetHeight / 2)]);
+  };
+
+  const perbarui = () => {
+    if (!bagian.isConnected) {
+      removeEventListener("scroll", pendengarKapsul);
+      removeEventListener("resize", pendengarKapsul);
+      return;
+    }
+    const W = panggung.clientWidth;
+    const H = panggung.clientHeight;
+    const kecil = W < 720;
+    const atas = bagian.getBoundingClientRect().top;
+    const stik = parseFloat(getComputedStyle(panggung).top) || 0;
+    const jarak = Math.max(1, bagian.offsetHeight - panggung.offsetHeight);
+    const p = hemat ? 1 : jepit((stik - atas) / jarak);
+
+    // 0. Tirai: hero mengecil, naik sedikit, dan meredup selama tertutup.
+    if (tiraiAktif && !hemat) {
+      const tutup = jepit(1 - (atas - stik) / Math.max(1, innerHeight - stik));
+      pembuka.style.transform = `translateY(${-40 * tutup}px) scale(${1 - 0.1 * tutup})`;
+      pembuka.style.opacity = (1 - 0.6 * tutup).toFixed(3);
+    }
+
+    const m = halus(antara(p, 0, 0.34)); // pindah ke tengah + membesar
+    const q = antara(p, 0.02, 0.28); // gelembung tersedot
+    const c = antara(p, 0.3, 0.42); // isi muncul
+    const f = antara(p, 0.42, 0.76); // isian terketik
+    const s = antara(p, 0.8, 0.85); // terkirim
+    const z = keluar(antara(p, 0.86, 0.97)); // zoom out jadi tiket
+
+    // 1. Bentuk: dari kapsul miring di kanan ke panel lebar di tengah.
+    const w0 = kecil ? 150 : 210;
+    const h0 = Math.min(H * 0.62, 460);
+    const w1 = Math.min(1080, W - (kecil ? 24 : 48));
+    const h1 = Math.min(H - (kecil ? 16 : 40), kecil ? 560 : 640);
+    const w = lerp(w0, w1, m);
+    const h = lerp(h0, h1, m);
+    const rad = Math.max(28, lerp(Math.min(w, h) / 2, 28, m));
+    const x = lerp(kecil ? 0 : W * 0.27, 0, m);
+    const rot = lerp(kecil ? -6 : -12, 0, m);
+    bentuk.style.width = `${w}px`;
+    bentuk.style.height = `${h}px`;
+    bentuk.style.borderRadius = `${rad}px`;
+    bentuk.style.transform = `translateX(${x}px) rotate(${rot}deg) scale(${1 - 0.05 * z})`;
+    panggung.style.setProperty("--g", m.toFixed(3));
+
+    // 2. Gelembung keluhan tersedot masuk ke kapsul.
+    const qq = q * q;
+    gelembung.forEach((g, i) => {
+      const [dx, dy] = vektor[i] || [0, 0];
+      g.style.translate = `${dx * qq + x * qq}px ${dy * qq}px`;
+      g.style.scale = `${1 - 0.85 * qq}`;
+      g.style.opacity = `${1 - antara(q, 0.65, 1)}`;
+    });
+
+    // 3. Isi formulir: muncul, lalu terketik mengikuti gulir.
+    isi.style.width = `${w1}px`;
+    isi.style.opacity = c;
+    isi.style.visibility = c > 0 ? "visible" : "hidden";
+    isi.style.pointerEvents = c > 0.8 ? "auto" : "none";
+    isi.style.transform = `translate(-50%, -50%) scale(${0.9 + 0.1 * c})`;
+    teks.style.transform = `translateY(${(1 - c) * 40 - z * 16}px)`;
+
+    el.kat.style.opacity = jepit(f / 0.12);
+    ketik(el.kat, TEKS.kat, 1);
+    ketik(el.lok, TEKS.lok, (f - 0.12) / 0.25);
+    ketik(el.ket, TEKS.ket, (f - 0.4) / 0.4);
+    el.foto.style.opacity = f > 0.85 ? 1 : 0;
+    el.foto.style.transform = f > 0.85 ? "none" : "translateY(6px)";
+    el.kirim.classList.toggle("tekan", f >= 1 && s < 0.5);
+    el.kirim.classList.toggle("terkirim", s >= 0.5);
+
+    // 4. Zoom out: kartu mengecil dan miring, tiket muncul di sudutnya.
+    kartu.style.transform = `translate(${z * (kecil ? 0 : -24)}px, ${z * -10}px) scale(${1 - 0.12 * z}) rotate(${-3 * z}deg)`;
+    kartu.style.opacity = `${1 - 0.35 * z}`;
+    el.tiket.style.opacity = z;
+    el.tiket.style.transform = `translate(${(1 - z) * 30}px, ${(1 - z) * 30}px) scale(${0.4 + 0.6 * z}) rotate(${8 - 11 * z}deg)`;
+  };
+
+  if (pendengarKapsul) {
+    removeEventListener("scroll", pendengarKapsul);
+    removeEventListener("resize", pendengarKapsul);
+  }
+  let antre = false;
+  pendengarKapsul = (e) => {
+    if (e && e.type === "resize") ukur();
+    if (antre) return;
+    antre = true;
+    requestAnimationFrame(() => {
+      antre = false;
+      perbarui();
+    });
+  };
+  addEventListener("scroll", pendengarKapsul, { passive: true });
+  addEventListener("resize", pendengarKapsul);
+  ukur();
+  perbarui();
+}
+
 const LANGKAH = [
   { judul: "Kirim laporan", isi: "Pilih kategori, tulis lokasi dan keterangan, lampirkan foto bila ada. Nomor laporan langsung keluar.", status: "menunggu", catatan: "Laporan dikirim dan menunggu pemeriksaan petugas." },
   { judul: "Diverifikasi petugas", isi: "Petugas sarana mencocokkan laporan dengan kondisi di lokasi, lalu menetapkan prioritas.", status: "menunggu", catatan: "Laporan diperiksa. Prioritas: tinggi." },
@@ -317,7 +463,8 @@ function halamanBeranda(parameter) {
   const akun = sesi ? (sesi.peran === "petugas" ? "#/petugas" : "#/laporan") : "#/daftar";
 
   akar.innerHTML = `
-    <section class="pembuka">
+    <div class="tirai" id="tirai">
+    <section class="pembuka" id="pembuka">
       <div class="bungkus pembuka__isi">
         <div class="pembuka__kiri">
           <p class="pembuka__sekolah" data-muncul><span class="simpul"></span>SMK Telkom Purwokerto</p>
@@ -366,6 +513,53 @@ function halamanBeranda(parameter) {
         </div>
       </div>
     </section>
+
+    <section class="kapsul" id="kapsul" aria-label="Cara mengirim laporan">
+      <div class="kapsul__panggung" id="kapsulPanggung">
+        <p class="kapsul__judul"><span class="simpul"></span>Lapor itu singkat. Gulir dan lihat.</p>
+        <div class="kapsul__gelembung" aria-hidden="true">
+          ${KELUHAN.map((k, i) => `<span class="kapsul__gel" style="--i:${i}">${esc(k)}</span>`).join("")}
+        </div>
+        <div class="kapsul__bentuk" id="kapsulBentuk">
+          <span class="kapsul__tambah" aria-hidden="true">${ikon("tulis")}</span>
+          <div class="kapsul__isi" id="kapsulIsi">
+            <div class="kapsul__teks">
+              <h2>Isi tiga kolom. Selesai.</h2>
+              <p>Pilih kategori, tulis lokasi dan keterangan singkat. Nomor laporan langsung keluar dan masuk ke meja petugas.</p>
+              <a class="tombol tombol--putih tombol--besar" href="#/lapor">Buat laporan ${ikon("tulis")}</a>
+            </div>
+            <div class="kapsul__kartu" aria-hidden="true">
+              <div class="kapsul__medan">
+                <small>Kategori</small>
+                <span class="kapsul__chip" id="kapKat"></span>
+              </div>
+              <div class="kapsul__medan">
+                <small>Lokasi</small>
+                <span class="kapsul__isian"><span id="kapLok"></span><i class="kursor"></i></span>
+              </div>
+              <div class="kapsul__medan">
+                <small>Keterangan</small>
+                <span class="kapsul__isian kapsul__isian--tinggi"><span id="kapKet"></span></span>
+              </div>
+              <div class="kapsul__medan">
+                <small>Foto</small>
+                <span class="kapsul__foto" id="kapFoto"><i class="simpul"></i>kerusakan-ac.jpg</span>
+              </div>
+              <button type="button" class="kapsul__kirim" id="kapKirim" tabindex="-1">
+                <span class="kapsul__kirim-a">Kirim laporan</span>
+                <span class="kapsul__kirim-b">Terkirim &middot; FT-2611-013</span>
+              </button>
+              <div class="kapsul__tiket" id="kapTiket">
+                <span class="kapsul__tiket-kode">FT-2611-013</span>
+                <b>Masuk ke meja petugas</b>
+                ${statusPil("menunggu")}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    </div>
 
     <section class="angka-pita" aria-label="Ringkasan laporan">
       <div class="bungkus">
@@ -609,6 +803,7 @@ function halamanBeranda(parameter) {
 
   /* --- Cerita perbaikan: bab mengikuti posisi gulir --- */
   pasangCerita();
+  pasangKapsul();
 
   if (parameter && parameter.get("ke") === "faq") {
     setTimeout(() => document.querySelector("#faq").scrollIntoView({ behavior: "smooth" }), 60);
