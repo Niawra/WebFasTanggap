@@ -1888,3 +1888,332 @@ textarea:focus {
     display: none;
   }
 }
+
+/* ---------- Kapsul: bentuk merah membesar menjadi formulir ------------- */
+
+.kapsul {
+  position: relative;
+  z-index: 1;
+  height: 360vh;
+  background: var(--kertas-hangat);
+}
+
+/* Tirai: hero memenuhi layar dan diam, kapsul naik menutupinya seperti kartu.
+   Hanya di layar lebar yang cukup tinggi; di HP hero mengalir biasa. */
+@media (min-width: 961px) and (min-height: 700px) and (prefers-reduced-motion: no-preference) {
+  .tirai .pembuka {
+    position: sticky;
+    top: 74px;
+    z-index: 0;
+    min-height: calc(100svh - 74px);
+    display: grid;
+    align-content: center;
+    padding: 40px 0;
+    transform-origin: 50% 20%;
+    will-change: transform, opacity;
+  }
+  .tirai .kapsul {
+    border-radius: 40px 40px 0 0;
+    box-shadow: 0 -40px 80px -40px rgba(60, 10, 10, 0.45);
+  }
+  .tirai .kapsul::before {
+    content: "";
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    width: 56px;
+    height: 5px;
+    margin-left: -28px;
+    border-radius: 999px;
+    background: var(--garis-kuat);
+  }
+}
+.kapsul__panggung {
+  position: sticky;
+  top: 74px;
+  height: calc(100vh - 74px);
+  min-height: 520px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  --g: 0;
+}
+.kapsul__judul {
+  position: absolute;
+  top: 22px;
+  left: 50%;
+  translate: -50% 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-family: var(--font-judul);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--tinta-lembut);
+  white-space: nowrap;
+  opacity: calc(1 - var(--g) * 4);
+}
+.kapsul__bentuk {
+  position: relative;
+  z-index: 2;
+  width: 210px;
+  height: 460px;
+  background: var(--merah);
+  border-radius: 105px;
+  overflow: hidden;
+  box-shadow: 0 50px 80px -50px rgba(90, 10, 10, 0.8);
+  will-change: width, height;
+}
+.kapsul__tambah {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  opacity: calc(1 - var(--g) * 3);
+}
+.kapsul__tambah .ikon {
+  width: 56px;
+  height: 56px;
+  stroke-width: 1.3;
+  animation: kapDenyut 2.4s var(--pegas) infinite;
+}
+@keyframes kapDenyut {
+  50% {
+    transform: scale(1.14) rotate(-6deg);
+  }
+}
+
+/* Gelembung keluhan mengambang di sekeliling kapsul, hilang saat membesar. */
+.kapsul__gel {
+  position: absolute;
+  z-index: 1;
+  padding: 9px 15px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--garis);
+  box-shadow: 0 10px 24px -16px rgba(60, 10, 10, 0.5);
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--tinta);
+  animation: kapApung 5s ease-in-out calc(var(--i) * -0.8s) infinite;
+}
+.kapsul__gel:nth-child(1) { left: 14%; top: 24%; --dx: -1; --dy: -1; }
+.kapsul__gel:nth-child(2) { right: 13%; top: 20%; --dx: 1; --dy: -1; }
+.kapsul__gel:nth-child(3) { left: 8%; top: 52%; --dx: -1; --dy: 0; }
+.kapsul__gel:nth-child(4) { right: 9%; top: 48%; --dx: 1; --dy: 0; }
+.kapsul__gel:nth-child(5) { left: 17%; top: 77%; --dx: -1; --dy: 1; }
+.kapsul__gel:nth-child(6) { right: 15%; top: 76%; --dx: 1; --dy: 1; }
+@keyframes kapApung {
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Isi bentuk: lebarnya tetap seukuran bentuk akhir, jadi hanya terungkap. */
+.kapsul__isi {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: 100%;
+  padding: 0 clamp(24px, 5vw, 64px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+  gap: clamp(24px, 5vw, 72px);
+  align-items: center;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, -50%);
+}
+.kapsul__teks {
+  color: #fff;
+}
+.kapsul__teks h2 {
+  color: #fff;
+  font-size: clamp(30px, 4vw, 48px);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  margin-bottom: 16px;
+}
+.kapsul__teks p {
+  max-width: 42ch;
+  margin-bottom: 26px;
+  font-size: 16.5px;
+  color: rgba(255, 255, 255, 0.88);
+}
+.kapsul__kartu {
+  position: relative;
+  transform-origin: 70% 60%;
+  display: grid;
+  gap: 14px;
+  padding: 22px;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 30px 50px -30px rgba(60, 5, 5, 0.7);
+  color: var(--tinta);
+}
+.kapsul__medan {
+  display: grid;
+  gap: 6px;
+}
+.kapsul__medan small {
+  font-family: var(--font-judul);
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--tinta-lembut);
+}
+.kapsul__chip,
+.kapsul__foto {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--merah-lembut);
+  color: var(--merah-tua);
+  font-weight: 500;
+  font-size: 14px;
+  transition: opacity 0.3s, transform 0.4s var(--pegas);
+}
+.kapsul__chip:empty {
+  display: none;
+}
+.kapsul__isian {
+  display: flex;
+  align-items: flex-start;
+  min-height: 42px;
+  padding: 10px 14px;
+  border: 1px solid var(--garis-kuat);
+  border-radius: 10px;
+  font-size: 14.5px;
+  line-height: 1.4;
+}
+.kapsul__isian--tinggi {
+  min-height: 70px;
+}
+.kapsul__isian .kursor {
+  height: 1.1em;
+  margin-top: 2px;
+}
+.kapsul__kirim {
+  position: relative;
+  display: grid;
+  min-height: 48px;
+  margin-top: 4px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--merah);
+  color: #fff;
+  font-family: var(--font-judul);
+  font-weight: 600;
+  font-size: 15px;
+  overflow: hidden;
+  transition: transform 0.2s, background 0.3s;
+}
+.kapsul__kirim span {
+  grid-area: 1 / 1;
+  display: grid;
+  place-items: center;
+  transition: transform 0.45s var(--pegas), opacity 0.3s;
+}
+.kapsul__kirim-b {
+  transform: translateY(120%);
+  opacity: 0;
+}
+.kapsul__kirim.tekan {
+  transform: scale(0.97);
+}
+.kapsul__kirim.terkirim {
+  background: var(--nada-selesai);
+}
+.kapsul__kirim.terkirim .kapsul__kirim-a {
+  transform: translateY(-120%);
+  opacity: 0;
+}
+.kapsul__kirim.terkirim .kapsul__kirim-b {
+  transform: none;
+  opacity: 1;
+}
+
+.kapsul__tiket {
+  position: absolute;
+  right: -34px;
+  bottom: -30px;
+  display: grid;
+  gap: 6px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: var(--tinta);
+  color: #fff;
+  box-shadow: 0 24px 40px -20px rgba(0, 0, 0, 0.7);
+  transform-origin: 100% 100%;
+  opacity: 0;
+}
+.kapsul__tiket-kode {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+.kapsul__tiket b {
+  color: #fff;
+  font-family: var(--font-judul);
+  font-weight: 600;
+  font-size: 15px;
+}
+.kapsul__tiket .status {
+  justify-self: start;
+}
+
+@media (max-width: 720px) {
+  .kapsul__tiket {
+    right: -4px;
+    bottom: -16px;
+    padding: 12px 14px;
+  }
+  .kapsul__isi {
+    grid-template-columns: 1fr;
+    align-content: center;
+    gap: 14px;
+    padding: 0 18px;
+  }
+  .kapsul__teks p,
+  .kapsul__teks .tombol {
+    display: none;
+  }
+  .kapsul__teks h2 {
+    font-size: 26px;
+    margin: 0;
+  }
+  .kapsul__kartu {
+    padding: 16px;
+    gap: 10px;
+  }
+  .kapsul__gel {
+    font-size: 12px;
+    padding: 7px 12px;
+  }
+  .kapsul__gel:nth-child(n + 5) {
+    display: none;
+  }
+}
+
+/* Tanpa gerakan: tampilkan keadaan akhir saja, tanpa sticky. */
+@media (prefers-reduced-motion: reduce) {
+  .kapsul {
+    height: auto;
+  }
+  .kapsul__panggung {
+    position: relative;
+    top: 0;
+    height: 720px;
+  }
+  .kapsul__gel,
+  .kapsul__tambah,
+  .kapsul__judul {
+    display: none;
+  }
+}
