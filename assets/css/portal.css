@@ -1284,6 +1284,17 @@ textarea:focus {
   border: 3px solid var(--garis-kuat);
   z-index: 1;
 }
+.slip-demo__jejak span.lewat {
+  color: var(--tinta);
+  font-weight: 500;
+}
+.slip-demo__jejak span::before {
+  transition: background 0.3s, border-color 0.3s, transform 0.4s var(--pantul);
+}
+.slip-demo__jejak span.lewat::before {
+  background: var(--merah);
+  border-color: var(--merah);
+}
 .slip-demo__catatan {
   background: var(--kertas-hangat);
   border-radius: 12px;
@@ -1301,8 +1312,8 @@ textarea:focus {
 }
 .slip-demo__cap {
   position: absolute;
-  right: 22px;
-  top: 64px;
+  right: 20px;
+  bottom: 24px;
   padding: 6px 12px;
   border: 3px solid var(--nada-selesai);
   border-radius: 8px;
@@ -1472,5 +1483,408 @@ textarea:focus {
   }
   .ikon--gambar * {
     stroke-dashoffset: 0;
+  }
+}
+
+/* ==========================================================================
+   Cerita perbaikan 3D (beranda)
+   Bagian setinggi 5 layar; panggung lengket 1 layar penuh di dalamnya.
+   ========================================================================== */
+
+.cerita {
+  position: relative;
+  height: 500svh;
+  background: #1d1817;
+}
+.cerita__panggung {
+  --prog: 0;
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+  color: var(--tinta);
+}
+.cerita__kanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  transition: opacity 1s var(--pegas);
+}
+.siap3d .cerita__kanvas {
+  opacity: 1;
+}
+/* Kalau WebGL tidak jalan, latar tetap berubah dari gelap ke terang. */
+.cerita__cadangan {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #1d1817, #3a2522);
+  opacity: calc(1 - var(--prog));
+}
+.siap3d .cerita__cadangan {
+  display: none;
+}
+.cerita__lapis {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 420px) 1fr auto;
+  grid-template-rows: auto 1fr auto;
+  gap: 20px;
+  padding-top: 96px;
+  padding-bottom: 40px;
+  pointer-events: none;
+}
+.cerita__lapis > * {
+  pointer-events: auto;
+}
+.cerita__label {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  font-family: var(--font-judul);
+  font-weight: 600;
+  font-size: 13.5px;
+  box-shadow: 0 8px 20px -14px rgba(0, 0, 0, 0.5);
+}
+
+/* teks bab: bertumpuk, satu yang tampil */
+.cerita__teks {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: center;
+  display: grid;
+}
+.cerita__bab {
+  grid-area: 1 / 1;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  border-radius: 18px;
+  padding: 28px 28px 30px;
+  box-shadow: 0 30px 60px -36px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transform: translateY(28px) scale(0.98);
+  transition: opacity 0.5s var(--pegas), transform 0.7s var(--pegas);
+  pointer-events: none;
+}
+.cerita__bab.lewat {
+  transform: translateY(-28px) scale(0.98);
+}
+.cerita__bab.aktif {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.cerita__no {
+  font-family: var(--font-judul);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--merah);
+  letter-spacing: 0.04em;
+}
+.cerita__bab h2 {
+  font-size: clamp(26px, 3vw, 36px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 8px 0 12px;
+}
+.cerita__bab p {
+  color: var(--tinta-lembut);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* tiket laporan yang ikut berubah */
+.cerita__tiket {
+  grid-column: 3;
+  grid-row: 3;
+  align-self: end;
+  position: relative;
+  width: 320px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 22px 20px 18px;
+  overflow: hidden;
+  box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.6);
+  display: grid;
+  gap: 4px;
+}
+.cerita__tiket::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 5px;
+  background: var(--merah);
+}
+.cerita__tiket header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.cerita__kode {
+  font-family: var(--font-judul);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--tinta-lembut);
+  letter-spacing: 0.04em;
+}
+.cerita__tiket b {
+  font-family: var(--font-judul);
+  font-weight: 600;
+  font-size: 15.5px;
+}
+.cerita__tiket small {
+  color: var(--tinta-lembut);
+  font-size: 13px;
+}
+.cerita__jejak {
+  height: 4px;
+  border-radius: 4px;
+  background: var(--garis);
+  margin: 12px 0 10px;
+  overflow: hidden;
+}
+.cerita__jejak i {
+  display: block;
+  height: 100%;
+  background: var(--merah);
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+}
+.cerita__tiket p {
+  font-size: 13.5px;
+  font-weight: 500;
+  background: var(--kertas-hangat);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.cerita__tiket p.ganti {
+  animation: naik 0.45s var(--pegas);
+}
+.status[data-nada="kosong"] {
+  background: #f1ece9;
+  color: var(--tinta-lembut);
+  border-color: var(--garis);
+}
+.cerita__cap {
+  position: absolute;
+  right: 14px;
+  bottom: 62px;
+  padding: 4px 10px;
+  border: 3px solid var(--nada-selesai);
+  border-radius: 8px;
+  color: var(--nada-selesai);
+  background: rgba(255, 255, 255, 0.85);
+  font-family: var(--font-judul);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  transform: rotate(-12deg) scale(2.4);
+  opacity: 0;
+  transition: transform 0.4s var(--pantul), opacity 0.25s;
+}
+[data-bab="4"] .cerita__cap {
+  opacity: 0.95;
+  transform: rotate(-12deg) scale(1);
+}
+
+/* rel titik bab di kanan */
+.cerita__rel {
+  grid-column: 3;
+  grid-row: 2;
+  align-self: center;
+  justify-self: end;
+  display: grid;
+  gap: 6px;
+}
+.cerita__rel button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  padding: 6px 0;
+  font-family: var(--font-judul);
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
+  transition: color 0.4s;
+}
+.cerita__rel button::after {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  transition: background 0.3s, transform 0.4s var(--pantul), border-color 0.3s;
+}
+.cerita__rel button span {
+  opacity: 0;
+  transform: translateX(6px);
+  transition: opacity 0.3s, transform 0.3s var(--pegas);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
+}
+.cerita__rel button:hover span,
+.cerita__rel button.aktif span {
+  opacity: 1;
+  transform: none;
+}
+.cerita__rel button.lewat::after,
+.cerita__rel button.aktif::after {
+  background: var(--merah);
+  border-color: var(--merah);
+}
+.cerita__rel button.aktif::after {
+  transform: scale(1.35);
+}
+/* setelah kelas terang, teks rel jadi gelap */
+[data-bab="3"] .cerita__rel button,
+[data-bab="4"] .cerita__rel button {
+  color: var(--tinta);
+}
+[data-bab="3"] .cerita__rel button span,
+[data-bab="4"] .cerita__rel button span {
+  text-shadow: none;
+}
+
+.cerita__ajak {
+  grid-column: 1;
+  grid-row: 3;
+  align-self: end;
+  justify-self: start;
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.5s, transform 0.6s var(--pegas);
+  pointer-events: none;
+}
+[data-bab="4"] .cerita__ajak {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.cerita__gulir {
+  grid-column: 2;
+  grid-row: 3;
+  align-self: end;
+  justify-self: center;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.75);
+  transition: opacity 0.4s;
+}
+.cerita__gulir span {
+  width: 22px;
+  height: 36px;
+  border: 1.5px solid currentColor;
+  border-radius: 12px;
+  position: relative;
+}
+.cerita__gulir span::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 7px;
+  width: 3px;
+  height: 7px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: currentColor;
+  animation: gulirTitik 1.6s var(--pegas) infinite;
+}
+@keyframes gulirTitik {
+  70%,
+  100% {
+    transform: translateY(13px);
+    opacity: 0;
+  }
+}
+[data-bab]:not([data-bab="0"]) .cerita__gulir {
+  opacity: 0;
+}
+.cerita__progres {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  z-index: 2;
+}
+.cerita__progres i {
+  display: block;
+  height: 100%;
+  background: var(--merah);
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+}
+.bagian--rapat {
+  padding: 28px 0;
+}
+.bagian--rapat .figur-lipat {
+  margin-top: 0;
+}
+
+@media (max-width: 860px) {
+  .cerita__lapis {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto 1fr auto;
+    padding-top: 84px;
+    padding-bottom: 20px;
+    gap: 12px;
+  }
+  .cerita__label {
+    grid-column: 1 / -1;
+  }
+  .cerita__teks {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    align-self: start;
+  }
+  .cerita__bab {
+    padding: 18px 18px 20px;
+  }
+  .cerita__bab h2 {
+    font-size: 22px;
+    margin: 4px 0 6px;
+  }
+  .cerita__bab p {
+    font-size: 14.5px;
+  }
+  .cerita__rel {
+    grid-column: 2;
+    grid-row: 3;
+  }
+  .cerita__rel button span {
+    display: none;
+  }
+  .cerita__tiket {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    width: 100%;
+    padding: 16px 16px 14px;
+  }
+  .cerita__tiket p {
+    display: none;
+  }
+  .cerita__ajak {
+    grid-column: 1;
+    grid-row: 3;
+    align-self: end;
+  }
+  .cerita__gulir {
+    display: none;
   }
 }
