@@ -111,7 +111,35 @@ function tandaiRute(rute) {
     if (a.dataset.rute === rute) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
   });
+  geserPil();
 }
+
+/* Pil navigasi: meluncur ke link yang disorot, kembali ke halaman aktif. */
+const pilNav = navigasi.querySelector(".navigasi__pil");
+function geserPil(sasaran) {
+  if (!pilNav) return;
+  const aktif = navigasi.querySelector('.navigasi > a[aria-current="page"]');
+  const tujuan = sasaran || aktif;
+  if (!tujuan || matchMedia("(max-width: 820px)").matches) {
+    pilNav.style.opacity = "0";
+    return;
+  }
+  pilNav.classList.toggle("lain", tujuan !== aktif);
+  pilNav.style.width = `${tujuan.offsetWidth}px`;
+  pilNav.style.transform = `translateX(${tujuan.offsetLeft}px)`;
+  pilNav.style.opacity = "1";
+}
+navigasi.addEventListener("pointerover", (e) => {
+  const a = e.target.closest(".navigasi > a");
+  if (a) geserPil(a);
+});
+navigasi.addEventListener("pointerleave", () => geserPil());
+navigasi.addEventListener("focusin", (e) => {
+  if (e.target.matches(".navigasi > a")) geserPil(e.target);
+});
+navigasi.addEventListener("focusout", () => geserPil());
+addEventListener("resize", () => geserPil());
+if (document.fonts) document.fonts.ready.then(() => geserPil());
 
 function tutupMenu() {
   navigasi.classList.remove("terbuka");
@@ -331,10 +359,11 @@ function pasangKapsul() {
     const jarak = Math.max(1, bagian.offsetHeight - panggung.offsetHeight);
     const p = hemat ? 1 : jepit((stik - atas) / jarak);
 
-    // 0. Tirai: hero mengecil, naik sedikit, dan meredup selama tertutup.
+    // 0. Tirai: hero naik sedikit dan meredup selama tertutup. Tanpa scale,
+    //    supaya blok merah tetap mentok ke tepi layar.
     if (tiraiAktif && !hemat) {
       const tutup = jepit(1 - (atas - stik) / Math.max(1, innerHeight - stik));
-      pembuka.style.transform = `translateY(${-40 * tutup}px) scale(${1 - 0.1 * tutup})`;
+      pembuka.style.transform = `translateY(${-60 * tutup}px)`;
       pembuka.style.opacity = (1 - 0.6 * tutup).toFixed(3);
     }
 
@@ -345,7 +374,7 @@ function pasangKapsul() {
     const s = antara(p, 0.8, 0.85); // terkirim
     const z = keluar(antara(p, 0.86, 0.97)); // zoom out jadi tiket
 
-    // 1. Bentuk: dari kapsul miring di kanan ke panel lebar di tengah.
+    // 1. Bentuk: dari kapsul di tengah menjadi panel lebar.
     const w0 = kecil ? 150 : 210;
     const h0 = Math.min(H * 0.62, 460);
     const w1 = Math.min(1080, W - (kecil ? 24 : 48));
@@ -353,8 +382,9 @@ function pasangKapsul() {
     const w = lerp(w0, w1, m);
     const h = lerp(h0, h1, m);
     const rad = Math.max(28, lerp(Math.min(w, h) / 2, 28, m));
-    const x = lerp(kecil ? 0 : W * 0.27, 0, m);
-    const rot = lerp(kecil ? -6 : -12, 0, m);
+    // Kapsul berdiri tegak di tengah sejak awal, lalu membesar dari situ.
+    const x = 0;
+    const rot = 0;
     bentuk.style.width = `${w}px`;
     bentuk.style.height = `${h}px`;
     bentuk.style.borderRadius = `${rad}px`;
