@@ -1,34 +1,16 @@
 /*
  * store.js
- * Penyimpanan data FasTanggap.
- * Semua data disimpan di localStorage browser, belum ada server.
+ * Data FasTanggap dari Supabase.
+ *
+ * Tabel yang dipakai (sudah ada di project Supabase):
+ *   profiles, reports, categories, locations,
+ *   report_status_history, report_notes, storage "report-photos".
+ * Ditambah lewat supabase/migrasi-website.sql:
+ *   kolom reports.code, fungsi lacak_laporan() dan ringkasan_publik().
+ *
+ * Bacaan bersifat sinkron dari cache (cepat untuk menggambar halaman);
+ * penulisan bersifat async dan memperbarui cache setelah berhasil.
  */
-
-const KUNCI = "fastanggap.v1";
-
-const KATEGORI_AWAL = [
-  { id: "ac", nama: "AC dan pendingin", contoh: "AC tidak dingin, bocor, atau berisik" },
-  { id: "kipas", nama: "Kipas angin", contoh: "Baling-baling macet atau bergetar" },
-  { id: "lampu", nama: "Lampu dan listrik", contoh: "Lampu mati, saklar rusak, stopkontak longgar" },
-  { id: "meja", nama: "Meja dan kursi", contoh: "Kaki patah, permukaan retak, baut lepas" },
-  { id: "proyektor", nama: "Proyektor dan layar", contoh: "Proyektor redup, kabel HDMI rusak" },
-  { id: "komputer", nama: "Komputer dan jaringan", contoh: "PC lab tidak menyala, jaringan putus" },
-  { id: "pintu", nama: "Pintu dan jendela", contoh: "Engsel lepas, kaca retak, kunci macet" },
-  { id: "toilet", nama: "Toilet dan air", contoh: "Kran bocor, flush tidak jalan, saluran mampet" },
-  { id: "lain", nama: "Fasilitas lain", contoh: "Papan tulis, gorden, tempat sampah" },
-];
-
-const LOKASI_AWAL = [
-  "Ruang kelas XI PPLG 4",
-  "Lab Komputer 1",
-  "Lab Komputer 2",
-  "Ruang guru",
-  "Perpustakaan",
-  "Toilet lantai 2",
-  "Kantin",
-  "Aula",
-  "Lapangan",
-];
 
 const STATUS = {
   menunggu: { label: "Menunggu verifikasi", nada: "tunggu", urut: 0 },
@@ -43,418 +25,440 @@ const PRIORITAS = {
   tinggi: { label: "Tinggi", urut: 2 },
 };
 
-function dataAwal() {
-  return {
-    pengguna: [
-      { id: "u-siswa", nama: "Siswa Demo", namaPengguna: "siswa", sandi: "siswa123", peran: "siswa", kelas: "XI PPLG 4" },
-      { id: "u-petugas", nama: "Petugas Sarana", namaPengguna: "petugas", sandi: "petugas123", peran: "petugas", kelas: "" },
-    ],
-    laporan: [],
-    kategori: KATEGORI_AWAL.map((k) => ({ ...k })),
-    lokasi: [...LOKASI_AWAL],
-    urutan: 0,
+const KE_DB = { menunggu: "menunggu_verifikasi", diproses: "diproses", selesai: "selesai", ditolak: "ditolak" };
+const dariDb = (s) => (s === "menunggu_verifikasi" ? "menunggu" : s);
+
+// Contoh kerusakan per kategori (tabel categories belum punya kolom ini).
+const CONTOH_KATEGORI = {
+  ac: "AC tidak dingin, bocor, atau berisik",
+  "kipas angin": "Baling-baling macet atau bergetar",
+  lampu: "Lampu mati, berkedip, saklar rusak",
+  meja: "Kaki patah, permukaan retak, baut lepas",
+  kursi: "Sandaran patah, kaki goyang",
+  proyektor: "Proyektor redup, kabel HDMI rusak",
+  "papan tulis": "Permukaan rusak, sulit dihapus",
+  "pintu / jendela": "Engsel lepas, kaca retak, kunci macet",
+  toilet: "Kran bocor, flush tidak jalan, saluran mampet",
+  lainnya: "Fasilitas lain di lingkungan sekolah",
+};
+
+const KONFIG = window.FASTANGGAP_SUPABASE || {};
+const sb = window.supabase.createClient(KONFIG.url, KONFIG.anonKey);
+const BUCKET = "report-photos";
+
+let sesi = null;
+const cache = {
+  kategori: [], // {id, nama, contoh, aktif}
+  lokasi: [], // {id, nama, aktif}
+  laporan: [],
+  publik: null,
+  referensiSiap: false,
+};
+
+/* ---------- Pemuat ------------------------------------------------------- */
+
+async function muatSesi() {
+  const { data } = await sb.auth.getSession();
+  const user = data.session && data.session.user;
+  if (!user) {
+    sesi = null;
+    return;
+  }
+  const { data: profil } = await sb.from("profiles").select("id, full_name, role, class_name").eq("id", user.id).maybeSingle();
+  sesi = {
+    id: user.id,
+    email: user.email,
+    nama: (profil && profil.full_name) || user.email.split("@")[0],
+    peran: (profil && profil.role) || "siswa",
+    kelas: (profil && profil.class_name) || "",
   };
 }
 
-let db = null;
-
-function muat() {
-  if (db) return db;
-  try {
-    const mentah = localStorage.getItem(KUNCI);
-    db = mentah ? JSON.parse(mentah) : dataAwal();
-  } catch (galat) {
-    db = dataAwal();
+async function muatReferensi() {
+  // Pengunjung belum login tidak bisa membaca tabel, jadi pakai daftar dari ringkasan publik.
+  if (!sesi) {
+    const pub = cache.publik || (await muatPublik());
+    cache.kategori = ((pub && pub.kategori) || []).map((k) => ({
+      id: k.id,
+      nama: k.name,
+      contoh: CONTOH_KATEGORI[k.name.toLowerCase()] || "",
+      aktif: true,
+    }));
+    cache.lokasi = [];
+    return;
   }
-  if (!Array.isArray(db.laporan)) db = dataAwal();
-  return db;
+  const [kat, lok] = await Promise.all([
+    sb.from("categories").select("id, name, is_active").order("name"),
+    sb.from("locations").select("id, name, is_active").order("name"),
+  ]);
+  cache.kategori = (kat.data || []).map((k) => ({
+    id: k.id,
+    nama: k.name,
+    contoh: CONTOH_KATEGORI[k.name.toLowerCase()] || "Belum ada contoh",
+    aktif: k.is_active,
+  }));
+  cache.lokasi = (lok.data || []).map((l) => ({ id: l.id, nama: l.name, aktif: l.is_active }));
+  cache.referensiSiap = true;
 }
 
-function simpan() {
-  try {
-    localStorage.setItem(KUNCI, JSON.stringify(db));
-    return true;
-  } catch (galat) {
-    // Kuota penuh biasanya karena foto terlalu besar.
-    return false;
+async function muatPublik() {
+  const { data, error } = await sb.rpc("ringkasan_publik");
+  if (error) {
+    console.warn("[FasTanggap] ringkasan publik gagal", error);
+    return cache.publik;
   }
+  cache.publik = data;
+  return data;
 }
 
-function kodeBaru() {
-  const d = new Date();
-  const bulan = String(d.getMonth() + 1).padStart(2, "0");
-  db.urutan = (db.urutan || 0) + 1;
-  return `FT-${String(d.getFullYear()).slice(2)}${bulan}-${String(db.urutan).padStart(3, "0")}`;
-}
-
-
-/* ---------- Sinkron Supabase (opsional) ---------------------------------- */
-
-const AWAN = (() => {
-  const c = window.FASTANGGAP_SUPABASE || {};
-  if (!c.url || !c.anonKey) return null;
-  return { url: c.url.replace(/\/$/, "") + "/rest/v1", kunci: c.anonKey };
-})();
-
-async function awanMinta(jalur, opsi = {}) {
-  const res = await fetch(`${AWAN.url}/${jalur}`, {
-    ...opsi,
-    headers: {
-      apikey: AWAN.kunci,
-      Authorization: `Bearer ${AWAN.kunci}`,
-      "Content-Type": "application/json",
-      ...(opsi.headers || {}),
-    },
+function susunRiwayat(dibuat, pelaporNama, riwayat, catatan, namaDari) {
+  const hasil = [{ waktu: dibuat, status: "menunggu", catatan: "Laporan dikirim dan menunggu pemeriksaan petugas.", oleh: pelaporNama || "Pelapor" }];
+  const sisaCatatan = catatan.slice();
+  riwayat.forEach((h) => {
+    const waktu = new Date(h.created_at).getTime();
+    // Catatan yang ditulis bersamaan dengan perubahan status digabung ke baris yang sama.
+    const i = sisaCatatan.findIndex((c) => Math.abs(new Date(c.created_at).getTime() - waktu) < 15000);
+    const pasangan = i >= 0 ? sisaCatatan.splice(i, 1)[0] : null;
+    hasil.push({
+      waktu: h.created_at,
+      status: dariDb(h.new_status),
+      catatan: (pasangan && pasangan.note) || h.note || `Status diubah menjadi ${STATUS[dariDb(h.new_status)].label}.`,
+      oleh: namaDari(h.changed_by),
+    });
   });
-  if (!res.ok) throw new Error(`Supabase ${res.status}: ${await res.text()}`);
-  const teks = await res.text();
-  return teks ? JSON.parse(teks) : null;
+  sisaCatatan.forEach((c) => {
+    const sebelum = hasil.filter((r) => new Date(r.waktu) <= new Date(c.created_at)).pop();
+    hasil.push({ waktu: c.created_at, status: sebelum ? sebelum.status : "menunggu", catatan: c.note, oleh: namaDari(c.author_id) });
+  });
+  return hasil.sort((a, b) => new Date(a.waktu) - new Date(b.waktu));
 }
 
-function keBaris(l) {
-  return {
-    kode: l.kode, judul: l.judul, kategori_id: l.kategoriId, lokasi: l.lokasi,
-    deskripsi: l.deskripsi, foto: l.foto || "", prioritas: l.prioritas || "",
-    status: l.status, dibuat: l.dibuat, pelapor_id: l.pelaporId,
-    pelapor_nama: l.pelaporNama, pelapor_kelas: l.pelaporKelas, riwayat: l.riwayat || [],
-  };
+async function muatLaporan() {
+  if (!sesi) {
+    cache.laporan = [];
+    return;
+  }
+  const { data: baris, error } = await sb
+    .from("reports")
+    .select("*, categories(name), locations(name)")
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.warn("[FasTanggap] gagal memuat laporan", error);
+    return;
+  }
+  const ids = baris.map((r) => r.id);
+  const [riw, cat, prof, foto] = await Promise.all([
+    ids.length ? sb.from("report_status_history").select("*").in("report_id", ids).order("created_at") : { data: [] },
+    ids.length ? sb.from("report_notes").select("*").in("report_id", ids).order("created_at") : { data: [] },
+    sb.from("profiles").select("id, full_name, class_name, role"),
+    (async () => {
+      const jalur = baris.map((r) => r.photo_path).filter(Boolean);
+      if (!jalur.length) return {};
+      const { data } = await sb.storage.from(BUCKET).createSignedUrls(jalur, 3600);
+      const peta = {};
+      (data || []).forEach((d) => {
+        if (d.signedUrl) peta[d.path] = d.signedUrl;
+      });
+      return peta;
+    })(),
+  ]);
+  const profil = {};
+  (prof.data || []).forEach((p) => (profil[p.id] = p));
+  const namaDari = (id) => (profil[id] && profil[id].full_name) || "Petugas sarana";
+
+  cache.laporan = baris.map((r) => {
+    const pelapor = profil[r.reporter_id];
+    const pelaporNama = (pelapor && pelapor.full_name) || (sesi && sesi.id === r.reporter_id ? sesi.nama : "Siswa");
+    return {
+      id: r.id,
+      kode: r.code || r.id.slice(0, 8).toUpperCase(),
+      judul: r.title,
+      kategoriId: r.category_id,
+      lokasiId: r.location_id,
+      lokasi: (r.locations && r.locations.name) || "",
+      deskripsi: r.description,
+      foto: (r.photo_path && foto[r.photo_path]) || "",
+      prioritas: r.priority || "",
+      status: dariDb(r.status),
+      dibuat: r.created_at,
+      pelaporId: r.reporter_id,
+      pelaporNama,
+      pelaporKelas: (pelapor && pelapor.class_name) || "",
+      riwayat: susunRiwayat(
+        r.created_at,
+        pelaporNama,
+        (riw.data || []).filter((h) => h.report_id === r.id),
+        (cat.data || []).filter((c) => c.report_id === r.id),
+        namaDari
+      ),
+    };
+  });
 }
 
-function dariBaris(b) {
-  return {
-    kode: b.kode, judul: b.judul, kategoriId: b.kategori_id, lokasi: b.lokasi,
-    deskripsi: b.deskripsi, foto: b.foto || "", prioritas: b.prioritas || "",
-    status: b.status, dibuat: b.dibuat, pelaporId: b.pelapor_id,
-    pelaporNama: b.pelapor_nama, pelaporKelas: b.pelapor_kelas, riwayat: b.riwayat || [],
-  };
+function dataUrlKeBlob(dataUrl) {
+  const [kepala, isi] = dataUrl.split(",");
+  const tipe = kepala.match(/:(.*?);/)[1];
+  const biner = atob(isi);
+  const larik = new Uint8Array(biner.length);
+  for (let i = 0; i < biner.length; i++) larik[i] = biner.charCodeAt(i);
+  return new Blob([larik], { type: tipe });
 }
 
-// Tulis ke Supabase di belakang layar; kalau gagal, data lokal tetap aman.
-function awanKirim(tabel, baris) {
-  if (!AWAN) return;
-  awanMinta(tabel, {
-    method: "POST",
-    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
-    body: JSON.stringify(baris),
-  }).catch((g) => console.warn("[FasTanggap] gagal sinkron", g));
-}
+const pesanGalat = (g, cadangan) => {
+  if (!g) return cadangan;
+  if (g.code === "23503") return "Data ini masih dipakai laporan yang ada.";
+  if (g.code === "23505") return "Data dengan nama itu sudah ada.";
+  if (g.code === "42501") return "Akunmu tidak punya izin untuk tindakan ini.";
+  return cadangan;
+};
 
-function awanHapus(tabel, kolom, nilai) {
-  if (!AWAN) return;
-  awanMinta(`${tabel}?${kolom}=eq.${encodeURIComponent(nilai)}`, { method: "DELETE" }).catch((g) =>
-    console.warn("[FasTanggap] gagal hapus", g)
-  );
-}
-
-function hitungUrutan() {
-  db.urutan = db.laporan.reduce(
-    (m, l) => Math.max(m, parseInt(String(l.kode).split("-")[2], 10) || 0),
-    db.urutan || 0
-  );
-}
+/* ---------- API untuk app.js -------------------------------------------- */
 
 const Store = {
-  terhubung: Boolean(AWAN),
+  terhubung: true,
 
-  // Tarik data dari Supabase sekali saat halaman dibuka.
+  // Dipanggil sekali saat halaman dibuka.
   async siapkan() {
-    if (!AWAN) return false;
-    try {
-      muat();
-      const [laporan, kategori, lokasi] = await Promise.all([
-        awanMinta("laporan?select=*&order=dibuat.desc"),
-        awanMinta("kategori?select=*"),
-        awanMinta("lokasi?select=*"),
-      ]);
-      if (!kategori.length) awanKirim("kategori", db.kategori);
-      else db.kategori = kategori.map((k) => ({ id: k.id, nama: k.nama, contoh: k.contoh || "" }));
-      if (!lokasi.length) awanKirim("lokasi", db.lokasi.map((nama) => ({ nama })));
-      else db.lokasi = lokasi.map((l) => l.nama);
-      db.laporan = laporan.map(dariBaris);
-      hitungUrutan();
-      simpan();
-      return true;
-    } catch (galat) {
-      console.warn("[FasTanggap] Supabase tidak terjangkau, memakai data lokal.", galat);
-      return false;
-    }
+    await muatSesi();
+    await Promise.all([muatPublik(), muatLaporan()]);
+    await muatReferensi();
+    return true;
   },
 
-  async cariKodeJauh(kode) {
-    const lokal = this.cariKode(kode);
-    if (lokal || !AWAN) return lokal;
-    try {
-      const bersih = encodeURIComponent(String(kode).trim().toUpperCase());
-      const hasil = await awanMinta(`laporan?kode=eq.${bersih}&select=*`);
-      return hasil && hasil[0] ? dariBaris(hasil[0]) : null;
-    } catch (g) {
-      return null;
-    }
-  },
-  semuaLaporan() {
-    return muat().laporan.slice().sort((a, b) => new Date(b.dibuat) - new Date(a.dibuat));
+  // Dipanggil setiap pindah halaman supaya data selalu terbaru.
+  async segarkan(jalur) {
+    const tugas = [];
+    if (jalur === "/" || !sesi) tugas.push(muatPublik());
+    if (sesi) tugas.push(muatLaporan());
+    if (sesi && (!cache.referensiSiap || jalur === "/petugas/kategori")) tugas.push(muatReferensi());
+    await Promise.all(tugas);
+    if (!sesi) await muatReferensi();
   },
 
-  laporanMilik(idPengguna) {
-    return this.semuaLaporan().filter((l) => l.pelaporId === idPengguna);
-  },
-
-  cariKode(kode) {
-    const bersih = String(kode || "").trim().toUpperCase();
-    return muat().laporan.find((l) => l.kode === bersih) || null;
-  },
-
-  kategori() {
-    return muat().kategori;
-  },
-
-  lokasi() {
-    return muat().lokasi;
-  },
-
-  tambahLaporan(masukan, pengguna) {
-    const laporan = {
-      kode: kodeBaru(),
-      judul: masukan.judul.trim(),
-      kategoriId: masukan.kategoriId,
-      lokasi: masukan.lokasi,
-      deskripsi: masukan.deskripsi.trim(),
-      foto: masukan.foto || "",
-      prioritas: "",
-      status: "menunggu",
-      dibuat: new Date().toISOString(),
-      pelaporId: pengguna.id,
-      pelaporNama: pengguna.nama,
-      pelaporKelas: pengguna.kelas,
-      riwayat: [
-        {
-          waktu: new Date().toISOString(),
-          status: "menunggu",
-          catatan: "Laporan dikirim dan menunggu pemeriksaan petugas.",
-          oleh: pengguna.nama,
-        },
-      ],
-    };
-    db.laporan.unshift(laporan);
-    if (!simpan()) {
-      db.laporan.shift();
-      return { ok: false, pesan: "Penyimpanan browser penuh. Coba kirim tanpa foto atau dengan foto yang lebih kecil." };
-    }
-    awanKirim("laporan", keBaris(laporan));
-    return { ok: true, laporan };
-  },
-
-  ubahStatus(kode, status, catatan, prioritas, oleh) {
-    const laporan = muat().laporan.find((l) => l.kode === kode);
-    if (!laporan) return { ok: false, pesan: "Laporan tidak ditemukan." };
-    if (status && !STATUS[status]) return { ok: false, pesan: "Status tidak dikenal." };
-    if (status) laporan.status = status;
-    if (prioritas) laporan.prioritas = prioritas;
-    laporan.riwayat.push({
-      waktu: new Date().toISOString(),
-      status: laporan.status,
-      catatan: catatan.trim(),
-      oleh,
-    });
-    if (!simpan()) return { ok: false, pesan: "Gagal menyimpan perubahan." };
-    awanKirim("laporan", keBaris(laporan));
-    return { ok: true, laporan };
-  },
-
-  tambahKategori(nama, contoh) {
-    const bersih = nama.trim();
-    if (!bersih) return { ok: false, pesan: "Nama kategori belum diisi." };
-    const ada = muat().kategori.some((k) => k.nama.toLowerCase() === bersih.toLowerCase());
-    if (ada) return { ok: false, pesan: "Kategori itu sudah ada." };
-    const baru = { id: `k-${Date.now()}`, nama: bersih, contoh: (contoh || "").trim() || "Belum ada contoh" };
-    db.kategori.push(baru);
-    simpan();
-    awanKirim("kategori", baru);
-    return { ok: true };
-  },
-
-  hapusKategori(id) {
-    const dipakai = muat().laporan.some((l) => l.kategoriId === id);
-    if (dipakai) return { ok: false, pesan: "Kategori ini masih dipakai laporan yang ada." };
-    db.kategori = db.kategori.filter((k) => k.id !== id);
-    simpan();
-    awanHapus("kategori", "id", id);
-    return { ok: true };
-  },
-
-  tambahLokasi(nama) {
-    const bersih = nama.trim();
-    if (!bersih) return { ok: false, pesan: "Nama lokasi belum diisi." };
-    if (muat().lokasi.some((l) => l.toLowerCase() === bersih.toLowerCase())) {
-      return { ok: false, pesan: "Lokasi itu sudah ada." };
-    }
-    db.lokasi.push(bersih);
-    simpan();
-    awanKirim("lokasi", { nama: bersih });
-    return { ok: true };
-  },
-
-  hapusLokasi(nama) {
-    const dipakai = muat().laporan.some((l) => l.lokasi === nama);
-    if (dipakai) return { ok: false, pesan: "Lokasi ini masih dipakai laporan yang ada." };
-    db.lokasi = db.lokasi.filter((l) => l !== nama);
-    simpan();
-    awanHapus("lokasi", "nama", nama);
-    return { ok: true };
-  },
-
-  masuk(namaPengguna, sandi) {
-    const orang = muat().pengguna.find(
-      (p) => p.namaPengguna.toLowerCase() === String(namaPengguna).trim().toLowerCase() && p.sandi === sandi
-    );
-    if (!orang) return { ok: false, pesan: "Nama pengguna atau kata sandi tidak cocok." };
-    sesi = { id: orang.id, nama: orang.nama, peran: orang.peran, kelas: orang.kelas, namaPengguna: orang.namaPengguna };
-    try {
-      localStorage.setItem(`${KUNCI}.sesi`, JSON.stringify(sesi));
-    } catch (galat) {
-      /* sesi tetap jalan di memori */
-    }
-    return { ok: true, pengguna: sesi };
-  },
-
-  daftar({ nama, kelas, namaPengguna, sandi }) {
-    const pengguna = String(namaPengguna).trim().toLowerCase();
-    if (muat().pengguna.some((p) => p.namaPengguna.toLowerCase() === pengguna)) {
-      return { ok: false, pesan: "Nama pengguna itu sudah dipakai. Coba yang lain." };
-    }
-    db.pengguna.push({
-      id: `u-${Date.now()}`,
-      nama: nama.trim(),
-      namaPengguna: pengguna,
-      sandi,
-      peran: "siswa",
-      kelas: kelas.trim(),
-    });
-    if (!simpan()) return { ok: false, pesan: "Penyimpanan browser penuh." };
-    return this.masuk(pengguna, sandi);
-  },
-
-  keluar() {
-    sesi = null;
-    localStorage.removeItem(`${KUNCI}.sesi`);
-  },
-
+  /* --- baca --- */
   sesi() {
     return sesi;
   },
-
+  semuaLaporan() {
+    return cache.laporan.slice();
+  },
+  laporanMilik(idPengguna) {
+    return cache.laporan.filter((l) => l.pelaporId === idPengguna);
+  },
+  cariKode(kode) {
+    const bersih = String(kode || "").trim().toUpperCase();
+    return cache.laporan.find((l) => l.kode === bersih) || null;
+  },
+  kategori() {
+    return cache.kategori.filter((k) => k.aktif);
+  },
+  lokasi() {
+    return cache.lokasi.filter((l) => l.aktif).map((l) => l.nama);
+  },
   ringkasan() {
-    const semua = muat().laporan;
+    if (sesi && sesi.peran === "petugas") {
+      const s = cache.laporan;
+      return {
+        total: s.length,
+        menunggu: s.filter((l) => l.status === "menunggu").length,
+        diproses: s.filter((l) => l.status === "diproses").length,
+        selesai: s.filter((l) => l.status === "selesai").length,
+        ditolak: s.filter((l) => l.status === "ditolak").length,
+      };
+    }
+    const p = cache.publik || {};
+    return { total: p.total || 0, menunggu: p.menunggu || 0, diproses: p.diproses || 0, selesai: p.selesai || 0, ditolak: p.ditolak || 0 };
+  },
+  // Data untuk beranda: dibaca dari fungsi publik, jadi tampil juga untuk pengunjung.
+  beranda() {
+    const p = cache.publik || {};
     return {
-      total: semua.length,
-      menunggu: semua.filter((l) => l.status === "menunggu").length,
-      diproses: semua.filter((l) => l.status === "diproses").length,
-      selesai: semua.filter((l) => l.status === "selesai").length,
-      ditolak: semua.filter((l) => l.status === "ditolak").length,
+      r: this.ringkasan(),
+      jumlahPer: p.per_kategori || {},
+      terbaru: (p.terbaru || []).map((t) => ({
+        kode: t.code,
+        judul: t.title,
+        kategoriId: t.category_id,
+        lokasi: t.location,
+        status: dariDb(t.status),
+        dibuat: t.created_at,
+      })),
+    };
+  },
+  async cariKodeJauh(kode) {
+    const lokal = this.cariKode(kode);
+    if (lokal) return lokal;
+    const { data, error } = await sb.rpc("lacak_laporan", { p_kode: String(kode || "") });
+    if (error || !data) return null;
+    const kat = cache.kategori.find((k) => k.nama === data.category);
+    return {
+      kode: data.code,
+      judul: data.title,
+      kategoriId: kat ? kat.id : "",
+      kategoriNama: data.category,
+      lokasi: data.location,
+      deskripsi: data.description,
+      foto: "",
+      prioritas: data.priority || "",
+      status: dariDb(data.status),
+      dibuat: data.created_at,
+      pelaporId: null,
+      pelaporNama: "Disembunyikan",
+      pelaporKelas: "",
+      publik: true,
+      riwayat: susunRiwayat(data.created_at, "Pelapor", data.history.map((h) => ({ ...h, new_status: h.status })), data.notes, () => "Petugas sarana"),
     };
   },
 
-  muatContoh() {
-    const contoh = [
-      {
-        judul: "AC ruang kelas tidak dingin sejak Senin",
-        kategoriId: "ac",
-        lokasi: "Ruang kelas XI PPLG 4",
-        deskripsi: "AC menyala tetapi anginnya hangat. Suhu kelas naik menjelang siang dan siswa kepanasan saat pelajaran produktif.",
-        status: "diproses",
-        prioritas: "tinggi",
-        hari: 3,
-      },
-      {
-        judul: "Dua kaki meja di baris belakang patah",
-        kategoriId: "meja",
-        lokasi: "Ruang kelas XI PPLG 4",
-        deskripsi: "Meja goyang dan tidak bisa dipakai menulis. Salah satu kaki sudah lepas dari rangkanya.",
-        status: "menunggu",
-        prioritas: "",
-        hari: 1,
-      },
-      {
-        judul: "Proyektor Lab Komputer 1 warnanya kemerahan",
-        kategoriId: "proyektor",
-        lokasi: "Lab Komputer 1",
-        deskripsi: "Gambar proyektor didominasi warna merah. Kabel sudah diganti tetapi hasilnya sama.",
-        status: "selesai",
-        prioritas: "sedang",
-        hari: 9,
-      },
-      {
-        judul: "Kran wastafel toilet lantai 2 bocor terus",
-        kategoriId: "toilet",
-        lokasi: "Toilet lantai 2",
-        deskripsi: "Air menetes tanpa henti walau kran sudah ditutup rapat. Lantai sekitar wastafel selalu basah.",
-        status: "menunggu",
-        prioritas: "",
-        hari: 0,
-      },
-      {
-        judul: "Lampu ruang perpustakaan mati satu baris",
-        kategoriId: "lampu",
-        lokasi: "Perpustakaan",
-        deskripsi: "Satu baris lampu di sisi jendela tidak menyala. Bagian meja baca jadi gelap pada sore hari.",
-        status: "ditolak",
-        prioritas: "",
-        hari: 6,
-      },
-    ];
-    const siswa = muat().pengguna.find((p) => p.peran === "siswa");
-    const petugas = muat().pengguna.find((p) => p.peran === "petugas");
-    contoh.forEach((c) => {
-      const waktu = new Date(Date.now() - c.hari * 86400000).toISOString();
-      db.urutan = (db.urutan || 0) + 1;
-      const d = new Date(waktu);
-      const laporan = {
-        kode: `FT-${String(d.getFullYear()).slice(2)}${String(d.getMonth() + 1).padStart(2, "0")}-${String(db.urutan).padStart(3, "0")}`,
-        judul: c.judul,
-        kategoriId: c.kategoriId,
-        lokasi: c.lokasi,
-        deskripsi: c.deskripsi,
-        foto: "",
-        prioritas: c.prioritas,
-        status: c.status,
-        dibuat: waktu,
-        pelaporId: siswa.id,
-        pelaporNama: siswa.nama,
-        pelaporKelas: siswa.kelas,
-        riwayat: [
-          { waktu, status: "menunggu", catatan: "Laporan dikirim dan menunggu pemeriksaan petugas.", oleh: siswa.nama },
-        ],
-      };
-      if (c.status !== "menunggu") {
-        laporan.riwayat.push({
-          waktu: new Date(new Date(waktu).getTime() + 3600000).toISOString(),
-          status: c.status,
-          catatan:
-            c.status === "ditolak"
-              ? "Lampu sudah dijadwalkan diganti minggu lalu, laporan ini digabung ke pekerjaan yang sama."
-              : c.status === "selesai"
-              ? "Komponen sudah diganti dan alat diuji kembali."
-              : "Laporan diperiksa, kerusakan sesuai. Teknisi dijadwalkan ke lokasi.",
-          oleh: petugas.nama,
-        });
-      }
-      db.laporan.push(laporan);
-      awanKirim("laporan", keBaris(laporan));
+  /* --- akun --- */
+  async masuk(email, sandi) {
+    const { error } = await sb.auth.signInWithPassword({ email: String(email).trim(), password: sandi });
+    if (error) return { ok: false, pesan: "Email atau kata sandi tidak cocok." };
+    await muatSesi();
+    cache.referensiSiap = false;
+    await Promise.all([muatLaporan(), muatReferensi()]);
+    return { ok: true, pengguna: sesi };
+  },
+  async daftar({ nama, kelas, email, sandi }) {
+    const { data, error } = await sb.auth.signUp({
+      email: String(email).trim(),
+      password: sandi,
+      options: { data: { full_name: nama.trim() } },
     });
-    simpan();
+    if (error) {
+      const sudah = /registered|exists/i.test(error.message);
+      return { ok: false, pesan: sudah ? "Email itu sudah terdaftar. Coba masuk." : `Pendaftaran gagal: ${error.message}` };
+    }
+    if (!data.session) {
+      const masuk = await sb.auth.signInWithPassword({ email: String(email).trim(), password: sandi });
+      if (masuk.error) return { ok: false, pesan: "Akun dibuat, tetapi belum bisa masuk. Coba lagi dari halaman Masuk." };
+    }
+    const { data: u } = await sb.auth.getUser();
+    await sb.from("profiles").update({ full_name: nama.trim(), class_name: kelas.trim() }).eq("id", u.user.id);
+    await muatSesi();
+    cache.referensiSiap = false;
+    await Promise.all([muatLaporan(), muatReferensi()]);
+    return { ok: true, pengguna: sesi };
+  },
+  async keluar() {
+    await sb.auth.signOut();
+    sesi = null;
+    cache.laporan = [];
+    cache.referensiSiap = false;
+    await muatReferensi();
+  },
+
+  /* --- laporan --- */
+  async tambahLaporan(masukan) {
+    if (!sesi) return { ok: false, pesan: "Masuk dulu untuk mengirim laporan." };
+    const lok = cache.lokasi.find((l) => l.nama === masukan.lokasi);
+    if (!lok) return { ok: false, pesan: "Lokasi tidak dikenal. Pilih dari daftar." };
+    let photo_path = null;
+    if (masukan.foto) {
+      photo_path = `${sesi.id}/${crypto.randomUUID()}.jpg`;
+      const unggah = await sb.storage.from(BUCKET).upload(photo_path, dataUrlKeBlob(masukan.foto), { contentType: "image/jpeg" });
+      if (unggah.error) return { ok: false, pesan: "Foto gagal diunggah. Coba kirim tanpa foto." };
+    }
+    const { data, error } = await sb
+      .from("reports")
+      .insert({
+        reporter_id: sesi.id,
+        category_id: masukan.kategoriId,
+        location_id: lok.id,
+        title: masukan.judul.trim(),
+        description: masukan.deskripsi.trim(),
+        photo_path,
+      })
+      .select("code")
+      .single();
+    if (error) return { ok: false, pesan: pesanGalat(error, "Laporan gagal dikirim. Coba lagi.") };
+    await Promise.all([muatLaporan(), muatPublik()]);
+    return { ok: true, laporan: this.cariKode(data.code) || { kode: data.code } };
+  },
+
+  async ubahStatus(kode, status, catatan, prioritas) {
+    const laporan = this.cariKode(kode);
+    if (!laporan) return { ok: false, pesan: "Laporan tidak ditemukan." };
+    if (status && !STATUS[status]) return { ok: false, pesan: "Status tidak dikenal." };
+    const ubah = { priority: prioritas || laporan.prioritas || null };
+    if (status) ubah.status = KE_DB[status];
+    if (status === "ditolak") ubah.rejection_reason = catatan.trim();
+    const { error } = await sb.from("reports").update(ubah).eq("id", laporan.id);
+    if (error) return { ok: false, pesan: pesanGalat(error, "Gagal menyimpan perubahan.") };
+    if (status !== "ditolak") {
+      const n = await sb.from("report_notes").insert({ report_id: laporan.id, author_id: sesi.id, note: catatan.trim() });
+      if (n.error) return { ok: false, pesan: pesanGalat(n.error, "Status tersimpan, tetapi catatan gagal disimpan.") };
+    }
+    await Promise.all([muatLaporan(), muatPublik()]);
+    return { ok: true, laporan: this.cariKode(kode) };
+  },
+
+  /* --- kategori & lokasi (petugas) --- */
+  async tambahKategori(nama) {
+    const bersih = nama.trim();
+    if (!bersih) return { ok: false, pesan: "Nama kategori belum diisi." };
+    if (cache.kategori.some((k) => k.nama.toLowerCase() === bersih.toLowerCase())) return { ok: false, pesan: "Kategori itu sudah ada." };
+    const { error } = await sb.from("categories").insert({ name: bersih });
+    if (error) return { ok: false, pesan: pesanGalat(error, "Kategori gagal ditambahkan.") };
+    await muatReferensi();
+    return { ok: true };
+  },
+  async hapusKategori(id) {
+    const { error } = await sb.from("categories").delete().eq("id", id);
+    if (error) return { ok: false, pesan: pesanGalat(error, "Kategori gagal dihapus.") };
+    await muatReferensi();
+    return { ok: true };
+  },
+  async tambahLokasi(nama) {
+    const bersih = nama.trim();
+    if (!bersih) return { ok: false, pesan: "Nama lokasi belum diisi." };
+    if (cache.lokasi.some((l) => l.nama.toLowerCase() === bersih.toLowerCase())) return { ok: false, pesan: "Lokasi itu sudah ada." };
+    const { error } = await sb.from("locations").insert({ name: bersih });
+    if (error) return { ok: false, pesan: pesanGalat(error, "Lokasi gagal ditambahkan.") };
+    await muatReferensi();
+    return { ok: true };
+  },
+  async hapusLokasi(nama) {
+    const lok = cache.lokasi.find((l) => l.nama === nama);
+    if (!lok) return { ok: false, pesan: "Lokasi tidak ditemukan." };
+    const { error } = await sb.from("locations").delete().eq("id", lok.id);
+    if (error) return { ok: false, pesan: pesanGalat(error, "Lokasi gagal dihapus.") };
+    await muatReferensi();
     return { ok: true };
   },
 
-  reset() {
-    db = dataAwal();
-    simpan();
+  // Tombol demo di dasbor petugas: mengirim 5 laporan contoh atas nama petugas.
+  async muatContoh() {
+    if (!sesi) return { ok: false, pesan: "Masuk dulu." };
+    const cariKat = (kata) => (cache.kategori.find((k) => k.nama.toLowerCase().includes(kata)) || cache.kategori[0]).id;
+    const cariLok = (kata) => (cache.lokasi.find((l) => l.nama.toLowerCase().includes(kata)) || cache.lokasi[0]).id;
+    const contoh = [
+      ["AC ruang kelas tidak dingin sejak Senin", "AC menyala tetapi anginnya hangat. Suhu kelas naik menjelang siang.", "ac", "kelas", "diproses", "tinggi"],
+      ["Dua kaki meja di baris belakang patah", "Meja goyang dan tidak bisa dipakai menulis. Salah satu kaki sudah lepas.", "meja", "kelas", null, null],
+      ["Proyektor lab warnanya kemerahan", "Gambar proyektor didominasi warna merah walau kabel sudah diganti.", "proyektor", "lab", "selesai", "sedang"],
+      ["Kran wastafel toilet bocor terus", "Air menetes tanpa henti walau kran sudah ditutup rapat.", "toilet", "toilet", null, null],
+      ["Lampu perpustakaan mati satu baris", "Satu baris lampu di sisi jendela tidak menyala.", "lampu", "perpus", "ditolak", null],
+    ];
+    for (const [title, description, kat, lok, status, priority] of contoh) {
+      const { data, error } = await sb
+        .from("reports")
+        .insert({ reporter_id: sesi.id, category_id: cariKat(kat), location_id: cariLok(lok), title, description })
+        .select("id")
+        .single();
+      if (error) return { ok: false, pesan: pesanGalat(error, "Laporan contoh gagal dibuat.") };
+      if (status) {
+        await sb
+          .from("reports")
+          .update({ status, priority, rejection_reason: status === "ditolak" ? "Sudah dijadwalkan dalam pekerjaan perbaikan lain." : null })
+          .eq("id", data.id);
+      }
+    }
+    await Promise.all([muatLaporan(), muatPublik()]);
+    return { ok: true };
   },
 };
 
-let sesi = null;
-try {
-  const tersimpan = localStorage.getItem(`${KUNCI}.sesi`);
-  if (tersimpan) sesi = JSON.parse(tersimpan);
-} catch (galat) {
-  sesi = null;
-}
+// Sesi login berubah di tab lain atau token diperbarui.
+sb.auth.onAuthStateChange((peristiwa) => {
+  if (peristiwa === "SIGNED_OUT") sesi = null;
+});
