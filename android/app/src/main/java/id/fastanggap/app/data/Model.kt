@@ -95,3 +95,20 @@ enum class Status(val db: String, val label: String) {
         fun dari(db: String) = entries.firstOrNull { it.db == db } ?: MENUNGGU
     }
 }
+
+/** Baris tabel `report_messages` (chat per laporan). */
+@Serializable
+data class Pesan(
+    val id: String = "",
+    @SerialName("report_id") val reportId: String,
+    @SerialName("sender_id") val senderId: String,
+    val body: String,
+    @SerialName("created_at") val createdAt: String = "",
+)
+
+@Serializable
+data class PesanBaru(
+    @SerialName("report_id") val reportId: String,
+    @SerialName("sender_id") val senderId: String,
+    val body: String,
+)

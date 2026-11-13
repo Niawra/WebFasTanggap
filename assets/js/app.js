@@ -1495,11 +1495,87 @@ async function halamanDetail(kode, baru) {
                </div>`
             : ""
         }
+        ${bolehLihat && laporan.id ? kotakChat(laporan) : ""}
       </div>
     </section>`;
 
   const tombolTindak = document.querySelector("#tindakLanjut");
   if (tombolTindak) tombolTindak.addEventListener("click", () => bukaTindakan(laporan.kode));
+  if (bolehLihat && laporan.id) pasangChat(laporan);
+}
+
+/* ---------- Chat laporan (pelapor <-> petugas) -------------------------- */
+
+let lepasChat = null;
+
+function kotakChat(laporan) {
+  const tutup = laporan.status === "selesai" || laporan.status === "ditolak";
+  return `
+    <div class="kartu kartu-isi chat" style="margin-top:34px">
+      <div class="chat__kepala">
+        <h2 style="font-size:16px">Obrolan dengan ${Store.sesi().peran === "petugas" ? "pelapor" : "petugas"}</h2>
+        <span class="medan__bantuan">${tutup ? "Laporan sudah ditutup" : "Pesan terhapus otomatis saat laporan ditutup"}</span>
+      </div>
+      <div class="chat__daftar" id="chatDaftar" aria-live="polite"><p class="chat__kosong">Memuat pesan...</p></div>
+      ${
+        tutup
+          ? `<p class="medan__bantuan">Obrolan tidak tersedia karena laporan sudah ${laporan.status === "selesai" ? "selesai" : "ditolak"}.</p>`
+          : `<form class="chat__form" id="chatForm">
+               <label class="lewati" for="chatIsi">Tulis pesan</label>
+               <input id="chatIsi" maxlength="1000" autocomplete="off" placeholder="Tulis pesan..." />
+               <button class="tombol tombol--utama" type="submit">Kirim</button>
+             </form>`
+      }
+    </div>`;
+}
+
+async function pasangChat(laporan) {
+  if (lepasChat) lepasChat();
+  lepasChat = null;
+  const daftar = document.querySelector("#chatDaftar");
+  const form = document.querySelector("#chatForm");
+  const sudah = new Set();
+  const tampil = (m) => {
+    if (sudah.has(m.id)) return;
+    sudah.add(m.id);
+    const kosong = daftar.querySelector(".chat__kosong");
+    if (kosong) kosong.remove();
+    const el = document.createElement("div");
+    el.className = "chat__pesan" + (m.milikku ? " chat__pesan--aku" : "");
+    el.innerHTML = `<div class="chat__nama">${esc(m.milikku ? "Kamu" : m.nama)}${m.petugas && !m.milikku ? " · petugas" : ""}</div>
+      <div class="chat__isi">${esc(m.isi)}</div><div class="chat__waktu">${esc(tanggal(m.waktu, true))}</div>`;
+    daftar.appendChild(el);
+    daftar.scrollTop = daftar.scrollHeight;
+  };
+  const pesan = await Store.muatChat(laporan.id);
+  if (!daftar.isConnected) return;
+  daftar.innerHTML = pesan.length ? "" : `<p class="chat__kosong">Belum ada pesan.</p>`;
+  pesan.forEach(tampil);
+  if (!form) return;
+  const lepas = Store.dengarChat(laporan.id, (m) => m.milikku || tampil(m));
+  lepasChat = lepas;
+  // Lepas langganan saat halaman berganti.
+  const pantau = new MutationObserver(() => {
+    if (!daftar.isConnected) {
+      lepas();
+      pantau.disconnect();
+    }
+  });
+  pantau.observe(akar, { childList: true });
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const input = form.querySelector("#chatIsi");
+    const isi = input.value.trim();
+    if (!isi) return;
+    input.value = "";
+    try {
+      await Store.kirimChat(laporan.id, isi);
+      tampil({ id: "lokal-" + Date.now(), milikku: true, nama: "Kamu", isi, waktu: new Date().toISOString() });
+    } catch (err) {
+      input.value = isi;
+      toast(err.message);
+    }
+  });
 }
 
 /* ---------- Modal tindakan petugas -------------------------------------- */
