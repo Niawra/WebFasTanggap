@@ -14,6 +14,9 @@ import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
+import io.github.jan.supabase.realtime.decodeRecord
+import io.github.jan.supabase.postgrest.query.filter.FilterOperator
+import kotlinx.coroutines.flow.map
 import io.github.jan.supabase.realtime.realtime
 import io.github.jan.supabase.storage.Storage
 import io.github.jan.supabase.storage.storage
@@ -151,6 +154,34 @@ object Repo {
     fun perubahanLaporan(): Flow<PostgresAction> {
         val kanal = supabase.channel("laporan-${UUID.randomUUID()}")
         return kanal.postgresChangeFlow<PostgresAction>(schema = "public") { table = "reports" }
+            .onStart { kanal.subscribe() }
+            .onCompletion { supabase.realtime.removeChannel(kanal) }
+    }
+
+    /* ---------- chat per laporan ---------- */
+
+    suspend fun muatChat(idLaporan: String): List<Pesan> =
+        supabase.from("report_messages").select {
+            filter { eq("report_id", idLaporan) }
+            order("created_at", Order.ASCENDING)
+        }.decodeList<Pesan>()
+
+    suspend fun kirimChat(idLaporan: String, idPengirim: String, isi: String) {
+        supabase.from("report_messages").insert(PesanBaru(idLaporan, idPengirim, isi.trim()))
+    }
+
+    suspend fun namaPengguna(ids: Collection<String>): Map<String, Profil> =
+        if (ids.isEmpty()) emptyMap()
+        else supabase.from("profiles").select { filter { isIn("id", ids.toList()) } }
+            .decodeList<Profil>().associateBy { it.id }
+
+    /** Pesan baru di laporan ini, langsung dari realtime. */
+    fun chatMasuk(idLaporan: String): Flow<Pesan> {
+        val kanal = supabase.channel("chat-$idLaporan-${UUID.randomUUID()}")
+        return kanal.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
+            table = "report_messages"
+            filter("report_id", FilterOperator.EQ, idLaporan)
+        }.map { it.decodeRecord<Pesan>() }
             .onStart { kanal.subscribe() }
             .onCompletion { supabase.realtime.removeChannel(kanal) }
     }

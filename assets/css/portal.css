@@ -2369,3 +2369,16 @@ textarea:focus {
     display: none;
   }
 }
+
+/* ---------- Chat laporan ---------- */
+.chat__kepala { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 16px; margin-bottom: 14px; }
+.chat__daftar { display: flex; flex-direction: column; gap: 10px; max-height: 380px; overflow-y: auto; padding: 14px; border-radius: 12px; background: var(--kertas-hangat); margin-bottom: 14px; }
+.chat__kosong { color: var(--tinta-lembut); font-size: 14px; text-align: center; padding: 18px 0; }
+.chat__pesan { max-width: min(78%, 460px); align-self: flex-start; background: #fff; border: 1px solid var(--garis); border-radius: 14px 14px 14px 4px; padding: 9px 13px; animation: naik 0.35s var(--pegas); }
+.chat__pesan--aku { align-self: flex-end; background: var(--merah); border-color: var(--merah); color: #fff; border-radius: 14px 14px 4px 14px; }
+.chat__nama { font-family: var(--font-judul); font-weight: 600; font-size: 12px; opacity: 0.8; }
+.chat__isi { font-size: 14.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat__waktu { font-size: 11px; opacity: 0.65; margin-top: 3px; text-align: right; }
+.chat__form { display: flex; gap: 10px; }
+.chat__form input { flex: 1; min-width: 0; padding: 12px 14px; border: 1px solid var(--garis); border-radius: 10px; font: inherit; }
+.chat__form input:focus { outline: 2px solid var(--merah); outline-offset: 1px; }
