@@ -270,6 +270,10 @@ fun DetailLaporan(vm: AppViewModel, l: Laporan, tutup: () -> Unit, aksi: @Compos
         }
         Spacer(Modifier.height(12.dp))
         Garis(l, vm)
+        if (milikSaya || vm.sesi?.peran == id.fastanggap.app.data.Peran.PETUGAS) {
+            Spacer(Modifier.height(12.dp))
+            id.fastanggap.app.ui.KartuChat(vm, l, Modifier.padding(horizontal = 18.dp))
+        }
         Spacer(Modifier.height(18.dp))
         Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             aksi?.invoke()

@@ -340,6 +340,44 @@ const Store = {
     await Promise.all([muatLaporan(), muatReferensi()]);
     return { ok: true, pengguna: sesi };
   },
+  /* ---- Chat per laporan ---- */
+  async muatChat(laporanId) {
+    const { data, error } = await sb
+      .from("report_messages")
+      .select("id, sender_id, body, created_at")
+      .eq("report_id", laporanId)
+      .order("created_at");
+    if (error) return [];
+    const ids = [...new Set(data.map((m) => m.sender_id))];
+    const prof = ids.length ? await sb.from("profiles").select("id, full_name, role").in("id", ids) : { data: [] };
+    const p = {};
+    (prof.data || []).forEach((x) => (p[x.id] = x));
+    return data.map((m) => Store.bentukPesan(m, p[m.sender_id]));
+  },
+  bentukPesan(m, profil) {
+    return {
+      id: m.id,
+      milikku: sesi && m.sender_id === sesi.id,
+      nama: (profil && profil.full_name) || (sesi && m.sender_id === sesi.id ? sesi.nama : "Petugas"),
+      petugas: profil ? profil.role === "petugas" : false,
+      isi: m.body,
+      waktu: m.created_at,
+    };
+  },
+  async kirimChat(laporanId, isi) {
+    const { error } = await sb.from("report_messages").insert({ report_id: laporanId, sender_id: sesi.id, body: isi.trim() });
+    if (error) throw new Error(pesanGalat(error));
+  },
+  dengarChat(laporanId, saatMasuk) {
+    const kanal = sb
+      .channel("chat-" + laporanId)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "report_messages", filter: `report_id=eq.${laporanId}` }, async (e) => {
+        const { data } = await sb.from("profiles").select("id, full_name, role").eq("id", e.new.sender_id).maybeSingle();
+        saatMasuk(Store.bentukPesan(e.new, data));
+      })
+      .subscribe();
+    return () => sb.removeChannel(kanal);
+  },
   async keluar() {
     await sb.auth.signOut();
     sesi = null;
