@@ -162,7 +162,7 @@ textarea {
 }
 
 .merek__teks strong {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .merek:hover {
@@ -386,9 +386,9 @@ textarea {
 
 .hero {
   padding: 68px 0 76px;
-  background:
-    radial-gradient(120% 90% at 100% 0%, rgba(221, 51, 51, 0.07), transparent 60%),
-    var(--kertas);
+  background: var(--kertas);
+
+
 }
 
 .hero__isi {
@@ -403,8 +403,8 @@ textarea {
   align-items: center;
   gap: 10px;
   font-size: 13px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  text-transform: none;
   color: var(--tinta-lembut);
   margin-bottom: 20px;
 }
@@ -419,7 +419,7 @@ textarea {
 .hero h1 {
   font-size: clamp(34px, 4.6vw, 54px);
   letter-spacing: -0.03em;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .hero h1 em {
@@ -1059,7 +1059,7 @@ textarea {
   background: var(--merah);
   color: #fff;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1396,7 +1396,7 @@ textarea {
   color: var(--tinta-lembut);
   font-size: 14px;
   cursor: pointer;
-  transition: all var(--ubah);
+  transition: color var(--ubah), background-color var(--ubah), border-color var(--ubah), opacity var(--ubah), transform var(--ubah);
 }
 
 .saring button:hover {
@@ -1435,8 +1435,8 @@ table.tabel th {
   font-family: var(--font-judul);
   font-size: 12.5px;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  text-transform: none;
   color: var(--tinta-lembut);
   padding: 14px 16px;
   border-bottom: 1px solid var(--garis);
