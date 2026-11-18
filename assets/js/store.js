@@ -208,6 +208,8 @@ async function muatLaporan() {
       status: dariDb(r.status),
       dibuat: r.created_at,
       tersembunyi: Boolean(r.is_hidden),
+      ditanganiId: r.assigned_to || null,
+      ditanganiNama: r.assigned_to ? namaDari(r.assigned_to) : "",
       aiVerdict: r.ai_verdict || "",
       aiAlasan: r.ai_reason || "",
       pelaporId: r.reporter_id,
@@ -468,6 +470,17 @@ const Store = {
     }
     await Promise.all([muatLaporan(), muatPublik()]);
     return { ok: true, laporan: this.cariKode(kode) };
+  },
+
+  /* --- petugas: ambil tugas (sama dengan aplikasi Android, siapa cepat dia dapat) --- */
+  async ambilTugas(kode) {
+    const laporan = this.cariKode(kode);
+    if (!laporan) return { ok: false, pesan: "Laporan tidak ditemukan." };
+    const { data, error } = await sb.rpc("ambil_tugas", { p_id: laporan.id });
+    if (error) return { ok: false, pesan: pesanGalat(error, "Gagal mengambil tugas. Coba lagi.") };
+    await Promise.all([muatLaporan(), muatPublik()]);
+    if (data && data.ok === false) return { ok: false, pesan: data.pesan || "Tugas sudah diambil petugas lain." };
+    return { ok: true };
   },
 
   /* --- verifikasi laporan asal-asalan (petugas) --- */
