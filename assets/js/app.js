@@ -86,14 +86,22 @@ function toast(pesan, jenis) {
 
 function gambarAksi() {
   const sesi = Store.sesi();
+  // Petugas tidak membuat laporan: tautan "Buat laporan" di navbar diganti "Tugas".
+  const tautanUtama = document.querySelector('#navigasi a[data-rute="/lapor"], #navigasi a[data-rute="/petugas"]');
+  if (tautanUtama) {
+    const petugas = sesi && sesi.peran === "petugas";
+    tautanUtama.href = petugas ? "#/petugas" : "#/lapor";
+    tautanUtama.dataset.rute = petugas ? "/petugas" : "/lapor";
+    tautanUtama.textContent = petugas ? "Tugas" : "Buat laporan";
+  }
   if (!sesi) {
     navigasiAksi.innerHTML = `
       <a class="tombol tombol--garis tombol--kecil" href="#/daftar">Daftar</a>
       <a class="tombol tombol--utama tombol--kecil" href="#/masuk">Masuk</a>`;
     return;
   }
-  const tujuan = sesi.peran === "petugas" ? "#/petugas" : "#/laporan";
-  const label = sesi.peran === "petugas" ? "Dasbor petugas" : "Laporan saya";
+  const tujuan = sesi.peran === "petugas" ? "#/petugas/rekap" : "#/laporan";
+  const label = sesi.peran === "petugas" ? "Ringkasan" : "Laporan saya";
   navigasiAksi.innerHTML = `
     <span class="navigasi__siapa" title="${esc(sesi.nama)}">${esc(sesi.nama)}</span>
     <a class="tombol tombol--garis tombol--kecil" href="${tujuan}">${label}</a>
