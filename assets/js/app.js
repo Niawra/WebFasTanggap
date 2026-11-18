@@ -364,7 +364,10 @@ function pasangKapsul() {
     const kecil = W < 720;
     const atas = bagian.getBoundingClientRect().top;
     const stik = parseFloat(getComputedStyle(panggung).top) || 0;
-    const jarak = Math.max(1, bagian.offsetHeight - panggung.offsetHeight);
+    // Di layar lebar slide aplikasi menutupi 100svh terakhir; animasi kapsul selesai sebelum itu.
+    const apl = document.querySelector("#aplikasi");
+    const tutupApl = apl ? Math.max(0, -parseFloat(getComputedStyle(apl).marginTop) || 0) : 0;
+    const jarak = Math.max(1, bagian.offsetHeight - panggung.offsetHeight - tutupApl);
     const p = hemat ? 1 : jepit((stik - atas) / jarak);
 
     // 0. Tirai: hero naik sedikit dan meredup selama tertutup. Tanpa scale,
@@ -508,7 +511,6 @@ function halamanBeranda(parameter) {
         <div class="cerita__cadangan" aria-hidden="true"></div>
         <div class="cerita__merek">
           <h1>Fas<span>Tanggap</span></h1>
-          <div class="cerita__mulai" aria-hidden="true"><span></span>Gulir ke bawah</div>
         </div>
         <div class="bungkus cerita__lapis">
           <p class="cerita__label"><span class="simpul"></span>Perjalanan satu laporan</p>
@@ -537,7 +539,6 @@ function halamanBeranda(parameter) {
             ${BAB_CERITA.map((b, i) => `<button type="button" data-ke-bab="${i}" aria-label="Tahap ${i + 1}: ${b.judul}"><span>${b.pendek}</span></button>`).join("")}
           </nav>
           <a class="tombol tombol--utama cerita__ajak" href="#/lapor">Laporkan kerusakan di sekolahmu</a>
-          <div class="cerita__gulir" aria-hidden="true"><span></span>Gulir untuk memperbaiki</div>
         </div>
         <div class="cerita__progres" aria-hidden="true"><i id="ceritaProgres"></i></div>
       </div>
@@ -588,6 +589,7 @@ function halamanBeranda(parameter) {
         </div>
       </div>
     </section>
+    ${window.htmlAplikasi ? window.htmlAplikasi() : ""}
     </div>
 
     <section class="angka-pita" aria-label="Ringkasan laporan">
@@ -799,6 +801,7 @@ function halamanBeranda(parameter) {
   /* --- Cerita perbaikan: bab mengikuti posisi gulir --- */
   pasangCerita();
   pasangKapsul();
+  if (window.pasangAplikasi) window.pasangAplikasi();
 
   if (parameter && parameter.get("ke") === "faq") {
     setTimeout(() => document.querySelector("#faq").scrollIntoView({ behavior: "smooth" }), 60);

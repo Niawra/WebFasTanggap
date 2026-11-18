@@ -2391,8 +2391,6 @@ textarea:focus {
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 28px;
-  padding-bottom: 6vh;
   pointer-events: none;
   transition: opacity 0.7s var(--pegas, ease), transform 0.9s var(--pegas, ease);
 }
@@ -2490,4 +2488,10 @@ textarea:focus {
   .tirai .kapsul {
     margin-top: -100svh;
   }
+}
+
+
+/* Beranda: adegan 3D langsung penuh layar, naik ke belakang navbar (pil mengambang di atasnya). */
+.cerita {
+  margin-top: calc(-1 * var(--tinggi-bilah));
 }
