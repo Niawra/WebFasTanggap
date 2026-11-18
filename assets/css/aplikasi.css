@@ -326,7 +326,7 @@
   font-size: 0;
 }
 .hp__foto.ada small::after {
-  content: "kerusakan-ac.jpg ¹3";
+  content: "kerusakan-ac.jpg ✓";
   font-size: 12px;
 }
 
@@ -446,11 +446,10 @@
   border: 2px solid rgba(29, 27, 27, 0.35);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
   pointer-events: none;
-  transition: transform 0.35s cubic-bezier(0.3, 0.8, 0.3, 1), opacity 0.3s, scale 0.15s;
+  transition: transform 0.3s cubic-bezier(0.3, 0.8, 0.3, 1), opacity 0.3s, background 0.15s;
 }
 
 .hp__jari.ketuk {
-  scale: 0.78;
   background: rgba(221, 51, 51, 0.45);
 }
 

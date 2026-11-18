@@ -148,8 +148,10 @@
         removeEventListener("scroll", pendengar);
         return;
       }
-      const atas = bagian.getBoundingClientRect().top;
-      const jarak = Math.max(1, bagian.offsetHeight - panggung.offsetHeight);
+      // Semua ukuran dari getBoundingClientRect supaya satuannya sama walau halaman di-zoom.
+      const kotak = bagian.getBoundingClientRect();
+      const atas = kotak.top;
+      const jarak = Math.max(1, kotak.height - panggung.getBoundingClientRect().height);
       const p = hemat ? 0.7 : jepit(-atas / jarak);
 
       // Pindah halaman sedikit setelah tiap ketukan.
@@ -172,16 +174,21 @@
       // Jari menuju tombol berikutnya; "mengetuk" saat dekat titik ketuk.
       const k = KETUK.find((x) => p < x.p + 0.03) || KETUK[KETUK.length - 1];
       if (k.el) {
-        const skala = hp.getBoundingClientRect().width / hp.offsetWidth || 1;
-        const kh = hp.getBoundingClientRect();
-        const kt = k.el.getBoundingClientRect();
-        // Tombol yang halamannya belum tergeser masuk: koreksi geseran supaya jari menunggu di posisinya.
-        const lebarHal = geser.parentElement.getBoundingClientRect().width;
-        const koreksi = (posisi - k.hal) * lebarHal;
-        const x = (kt.left - kh.left + koreksi) / skala + kt.width / skala / 2;
-        const y = (kt.top - kh.top) / skala + kt.height / skala / 2;
-        jari.style.transform = `translate(${x}px, ${y}px)`;
-        jari.classList.toggle("ketuk", Math.abs(p - k.p) < 0.018);
+        // Dihitung dari tata letak (offset*), bukan getBoundingClientRect, supaya tidak meleset
+        // saat browser di-zoom / skala layar Windows bukan 100%. Posisi diambil seperti saat
+        // halaman tombol itu sudah tampil, jadi jari menunggu di tempat yang benar.
+        let x = k.el.offsetWidth / 2;
+        let y = k.el.offsetHeight / 2;
+        for (let n = k.el; n && n !== hp; n = n.offsetParent) {
+          x += n.offsetLeft;
+          y += n.offsetTop;
+        }
+        x -= k.hal * geser.parentElement.offsetWidth;
+        const ketuk = Math.abs(p - k.p) < 0.018;
+        // Efek tekan (mengecil) digabung di transform yang sama, SETELAH translate,
+        // supaya mengecil di tempat dan tidak menarik jari ke pojok kiri atas.
+        jari.style.transform = `translate(${x}px, ${y}px) scale(${ketuk ? 0.78 : 1})`;
+        jari.classList.toggle("ketuk", ketuk);
       }
       jari.style.opacity = p < 0.04 || p >= 0.85 ? 0 : 1;
     };
