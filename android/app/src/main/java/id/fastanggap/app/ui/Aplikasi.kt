@@ -99,9 +99,11 @@ private fun Rangka(vm: AppViewModel) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var lapor by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<Laporan?>(null) }
+    var ai by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = lapor || detail != null || tab != 0) {
+    BackHandler(enabled = ai || lapor || detail != null || tab != 0) {
         when {
+            ai -> ai = false
             lapor -> lapor = false
             detail != null -> detail = null
             else -> tab = 0
@@ -168,6 +170,13 @@ private fun Rangka(vm: AppViewModel) {
             tekanAksi = { lapor = true },
         )
 
+        if (!lapor && detail == null) {
+            TombolTanggapAi(
+                buka = { ai = true },
+                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 20.dp, bottom = 96.dp),
+            )
+        }
+
         AnimatedVisibility(
             visible = detail != null,
             enter = slideInVertically(pegas()) { it } + fadeIn(),
@@ -192,6 +201,14 @@ private fun Rangka(vm: AppViewModel) {
             exit = slideOutVertically(tween(280)) { it } + fadeOut(),
         ) {
             LaporFlow(vm, tutup = { lapor = false }, lihat = { lapor = false; tab = 1 })
+        }
+
+        AnimatedVisibility(
+            visible = ai,
+            enter = slideInVertically(pegas()) { it } + fadeIn(),
+            exit = slideOutVertically(tween(280)) { it } + fadeOut(),
+        ) {
+            TanggapAiLayar(vm, tutup = { ai = false })
         }
     }
 }

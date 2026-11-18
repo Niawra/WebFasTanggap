@@ -209,7 +209,7 @@ fun LaporFlow(vm: AppViewModel, tutup: () -> Unit, lihat: () -> Unit) {
                             lingkup.launch {
                                 vm.kirimLaporan(kategori!!.id, lokasi!!.id, judul, keterangan, foto)
                                     .onSuccess { kode = it }
-                                    .onFailure { vm.kabari("Laporan gagal dikirim. Coba lagi.") }
+                                    .onFailure { vm.kabari(it.message ?: "Laporan gagal dikirim. Coba lagi.") }
                                 sibuk = false
                             }
                         }

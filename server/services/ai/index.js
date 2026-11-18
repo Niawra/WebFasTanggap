@@ -72,6 +72,7 @@ export async function kirimPesanAI({
   client = null,
   model,
   provider,
+  ekstra = "",
 } = {}) {
   const providerAktif = (provider || getActiveAiProvider()).toLowerCase().trim();
 
@@ -93,6 +94,7 @@ export async function kirimPesanAI({
       userName,
       client,
       model,
+      ekstra,
     });
   }
 
@@ -105,6 +107,7 @@ export async function kirimPesanAI({
       userName,
       client,
       model,
+      ekstra,
     });
   }
 
@@ -117,6 +120,7 @@ export async function kirimPesanAI({
       userName,
       client,
       model,
+      ekstra,
     });
   }
 

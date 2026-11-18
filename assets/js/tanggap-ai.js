@@ -418,6 +418,7 @@
       time.textContent = msg.time || formatWaktuSekarang();
 
       msgWrap.appendChild(content);
+      if (msg.draf) msgWrap.appendChild(buatKartuDraf(msg, dom));
       msgWrap.appendChild(time);
       messagesContainer.appendChild(msgWrap);
     });
@@ -501,6 +502,85 @@
   }
 
   // 9. Logika Pengiriman Pesan ke Backend
+  /* ---------- Lapor lewat TanggapAI -------------------------------------- */
+
+  // Siswa yang login: kirim nama kategori & lokasi dari database supaya AI bisa menyusun draf laporan.
+  function daftarReferensiLaporan() {
+    try {
+      const sesi = typeof Store !== "undefined" && Store.sesi();
+      if (!sesi || sesi.peran !== "siswa") return {};
+      return { kategori: Store.kategori().map((k) => k.nama), lokasi: Store.lokasi() };
+    } catch {
+      return {};
+    }
+  }
+
+  // Kartu draf laporan + tombol Kirim (semua teks lewat textContent, aman dari XSS).
+  function buatKartuDraf(msg, dom) {
+    const d = msg.draf;
+    const kartu = document.createElement("div");
+    kartu.style.cssText =
+      "margin-top:8px;padding:12px;border-radius:14px;background:#fff;border:1px solid rgba(0,0,0,.1);color:#1d1b1b;font-size:13px;line-height:1.45";
+    const baris = (label, nilai, tebal) => {
+      const el = document.createElement("div");
+      el.style.marginBottom = "6px";
+      const l = document.createElement("div");
+      l.textContent = label;
+      l.style.cssText = "font-size:11px;color:#6e6766";
+      const v = document.createElement("div");
+      v.textContent = nilai;
+      if (tebal) v.style.fontWeight = "600";
+      el.appendChild(l);
+      el.appendChild(v);
+      return el;
+    };
+    kartu.appendChild(baris("Judul", d.judul, true));
+    kartu.appendChild(baris("Kategori · Lokasi", `${d.kategori} · ${d.lokasi}`));
+    kartu.appendChild(baris("Deskripsi", d.deskripsi));
+
+    const tombol = document.createElement("button");
+    tombol.type = "button";
+    tombol.style.cssText =
+      "margin-top:4px;width:100%;padding:9px 12px;border:0;border-radius:99px;background:#dd3333;color:#fff;font-weight:600;cursor:pointer";
+    if (msg.terkirim) {
+      tombol.textContent = msg.terkirim;
+      tombol.disabled = true;
+      tombol.style.opacity = "0.6";
+      tombol.style.cursor = "default";
+    } else {
+      tombol.textContent = "Kirim laporan";
+      tombol.addEventListener("click", () => kirimDraf(msg, tombol, dom));
+    }
+    kartu.appendChild(tombol);
+    return kartu;
+  }
+
+  async function kirimDraf(msg, tombol, dom) {
+    const d = msg.draf;
+    const kat = Store.kategori().find((k) => k.nama === d.kategori);
+    if (!kat || !Store.lokasi().includes(d.lokasi)) {
+      tombol.textContent = "Kategori/lokasi tidak dikenal";
+      return;
+    }
+    tombol.disabled = true;
+    tombol.textContent = "Mengirim...";
+    const hasil = await Store.tambahLaporan({ kategoriId: kat.id, lokasi: d.lokasi, judul: d.judul, deskripsi: d.deskripsi, foto: null });
+    let balasan;
+    if (!hasil.ok) {
+      tombol.disabled = false;
+      tombol.textContent = "Coba kirim lagi";
+      balasan = `Laporan gagal dikirim: ${hasil.pesan}`;
+    } else if (hasil.verifikasi && hasil.verifikasi.verdict === "asal") {
+      msg.terkirim = "Ditolak otomatis";
+      balasan = `Laporan ditolak otomatis karena dinilai asal-asalan (${hasil.verifikasi.alasan}). Akunmu mendapat peringatan.`;
+    } else {
+      msg.terkirim = `Terkirim · ${hasil.laporan.kode}`;
+      balasan = `Laporan **${hasil.laporan.kode}** terkirim ke petugas. Pantau statusnya di #/laporan.`;
+    }
+    state.messages.push({ id: "msg-" + Date.now(), role: "model", text: balasan, time: formatWaktuSekarang() });
+    renderTampilanChat(dom);
+  }
+
   async function kirimPesan(teksPesan, dom, isRetry = false) {
     const inputEl = document.getElementById("tanggapAiInput");
     const sendBtn = document.getElementById("tanggapAiSendBtn");
@@ -574,6 +654,7 @@
         body: JSON.stringify({
           message: pesanBersih,
           history: state.history.slice(-4), // Maksimal 4 pesan riwayat (2 pasangan giliran yang telah selesai)!
+          ...daftarReferensiLaporan(),
         }),
       });
 
@@ -600,6 +681,7 @@
           role: "model",
           text: balasanAI,
           time: formatWaktuSekarang(),
+          draf: resJson.draft || null,
         });
 
         perbaruiStatusKoneksi("online", dom);

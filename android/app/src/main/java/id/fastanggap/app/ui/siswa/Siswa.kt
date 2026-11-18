@@ -84,6 +84,7 @@ fun BerandaSiswa(vm: AppViewModel, buka: (Laporan) -> Unit, lapor: () -> Unit, s
     PullToRefreshBox(isRefreshing = vm.menyegarkan, onRefresh = { lingkup.launch { vm.segarkan() } }) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = RuangBilah)) {
             item { JudulBesar("Halo, ${sesi.nama.substringBefore(" ")}", sub = sesi.kelas.ifBlank { "Siswa" }) }
+            item { BannerPeringatan(sesi.peringatan) }
             item {
                 // Kartu ajakan melapor: merah penuh, bisa ditekan.
                 Kartu(Modifier.padding(horizontal = 18.dp, vertical = 8.dp).fillMaxWidth(), onClick = lapor, padding = PaddingValues(0.dp)) {
@@ -150,6 +151,7 @@ fun LaporanSaya(vm: AppViewModel, buka: (Laporan) -> Unit) {
     PullToRefreshBox(isRefreshing = vm.menyegarkan, onRefresh = { lingkup.launch { vm.segarkan() } }) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = RuangBilah)) {
             item { JudulBesar("Laporan saya") }
+            item { BannerPeringatan(sesi.peringatan) }
             item { Saringan(saring) { saring = it } }
             if (milik.isEmpty()) {
                 item { Kosong("Tidak ada laporan", "Belum ada laporan dengan status ini.", Icons.Rounded.Inbox) }
@@ -334,5 +336,32 @@ private fun Garis(l: Laporan, vm: AppViewModel) {
                 }
             }
         }
+    }
+}
+
+/** Peringatan laporan asal-asalan. 3 peringatan = tidak bisa membuat laporan baru. */
+@Composable
+fun BannerPeringatan(jumlah: Int) {
+    if (jumlah <= 0) return
+    val blokir = jumlah >= 3
+    Column(
+        Modifier
+            .padding(horizontal = 18.dp, vertical = 6.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(Warna.MerahLembut)
+            .padding(14.dp),
+    ) {
+        Text(
+            if (blokir) "Akunmu diblokir dari membuat laporan" else "Peringatan $jumlah/3",
+            color = Warna.MerahTua,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            if (blokir) "Kamu sudah 3 kali mengirim laporan asal-asalan. Hubungi petugas sarana untuk membuka blokir."
+            else "Ada laporanmu yang ditandai asal-asalan. Setelah 3 peringatan, akunmu tidak bisa membuat laporan baru.",
+            color = Warna.MerahTua,
+            fontSize = 13.sp,
+        )
     }
 }

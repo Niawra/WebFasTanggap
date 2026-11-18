@@ -14,5 +14,10 @@ window.FASTANGGAP_SUPABASE = {
  * Konfigurasi Endpoint Backend TanggapAI Chatbot
  */
 window.FASTANGGAP_TANGGAPAI = {
-  apiUrl: "http://localhost:5001/api/chat",
+  // Dibuka lewat server statis lokal terpisah (8000/5500/3000) atau file:// -> backend localhost:5001.
+  // Dibuka lewat backend sendiri / tunnel publik -> alamat relatif (satu origin).
+  apiUrl:
+    location.protocol === "file:" || ["8000", "5500", "3000"].includes(location.port)
+      ? "http://localhost:5001/api/chat"
+      : "/api/chat",
 };

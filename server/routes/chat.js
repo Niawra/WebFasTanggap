@@ -15,6 +15,7 @@ import {
   MAX_MESSAGE_LENGTH,
 } from "../services/ai/index.js";
 import { authMiddleware } from "../services/supabase.js";
+import { promptPembuatLaporan, ambilDrafLaporan } from "../prompts/drafLaporan.js";
 
 const router = Router();
 
@@ -169,11 +170,19 @@ router.post("/chat", authMiddleware, chatRateLimiter, async (req, res) => {
       userName: namaPengguna,
       client: clientMock,
       provider,
+      ekstra: roleTerverifikasi === "siswa" ? promptPembuatLaporan(req.body.kategori, req.body.lokasi) : "",
     });
+
+    // Draf laporan dari AI (hanya untuk siswa) -> dipisah dari teks balasan
+    const { teks, draf } =
+      roleTerverifikasi === "siswa"
+        ? ambilDrafLaporan(hasil.reply, req.body.kategori, req.body.lokasi)
+        : { teks: hasil.reply, draf: null };
 
     return res.status(200).json({
       success: true,
-      reply: hasil.reply,
+      reply: teks,
+      draft: draf,
       error: null,
     });
   } catch (error) {
