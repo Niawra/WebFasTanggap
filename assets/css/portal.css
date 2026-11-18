@@ -2479,3 +2479,15 @@ textarea:focus {
     animation: none;
   }
 }
+
+/* Tirai di atas adegan 3D: kapsul naik menutupi panggung yang masih menempel.
+   Ruang gulir cerita ditambah 100svh supaya tahap "selesai" tuntas sebelum tertutup. */
+@media (min-width: 961px) and (min-height: 700px) and (prefers-reduced-motion: no-preference) {
+  .tirai .cerita {
+    z-index: 0;
+    height: 600svh;
+  }
+  .tirai .kapsul {
+    margin-top: -100svh;
+  }
+}
