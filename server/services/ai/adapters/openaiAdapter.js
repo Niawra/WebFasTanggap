@@ -62,6 +62,15 @@ export function tentukanParameterModel(modelName, maxTokens = MAX_OUTPUT_TOKENS,
 
   const namaBersih = modelName.trim().toLowerCase();
 
+  // 0. Gateway kompatibel OpenAI kustom (OPENAI_BASE_URL): model apa pun diteruskan apa adanya
+  if (process.env.OPENAI_BASE_URL && process.env.OPENAI_BASE_URL.trim()) {
+    return {
+      model: modelName.trim(),
+      max_tokens: maxTokens,
+      temperature,
+    };
+  }
+
   // 1. Model Penalaran (Reasoning Models: o1, o3)
   if (namaBersih.startsWith("o1") || namaBersih.startsWith("o3")) {
     return {
@@ -134,6 +143,9 @@ export function getOpenAiClient() {
 
   return new OpenAI({
     apiKey: process.env.OPENAI_API_KEY.trim(),
+    ...(process.env.OPENAI_BASE_URL && process.env.OPENAI_BASE_URL.trim()
+      ? { baseURL: process.env.OPENAI_BASE_URL.trim() }
+      : {}),
     timeout: REQUEST_TIMEOUT_MS,
     maxRetries: 1, // Dibatasi 1 kali agar total waktu tunggu tidak menumpuk melebihi toleransi frontend
   });
@@ -228,8 +240,9 @@ export async function kirimPesanOpenAi({
   history = [],
   role = "tamu",
   userName = "",
-  model = DEFAULT_OPENAI_MODEL,
+  model = process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL,
   client = null,
+  ekstra = "",
 } = {}) {
   // 1. Validasi Input Pesan Pengguna
   if (!message || typeof message !== "string" || message.trim() === "") {
@@ -274,7 +287,7 @@ export async function kirimPesanOpenAi({
   // Kebijakan Privasi Siswa: Untuk akun 'siswa', nama lengkap TIDAK dikirim ke pihak ketiga
   const roleAman = ["siswa", "petugas"].includes(role) ? role : "tamu";
   const namaAman = roleAman === "siswa" ? "" : String(userName || "").trim().slice(0, 30);
-  const instruksiSistem = buildSystemPrompt({ role: roleAman, name: namaAman });
+  const instruksiSistem = buildSystemPrompt({ role: roleAman, name: namaAman , ekstra });
 
   // 7. Normalisasi Riwayat Percakapan
   const riwayatTervalidasi = konversiRiwayatOpenAi(history);

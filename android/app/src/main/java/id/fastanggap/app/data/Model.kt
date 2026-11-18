@@ -18,6 +18,9 @@ data class Laporan(
     @SerialName("assigned_to") val assignedTo: String? = null,
     @SerialName("assigned_at") val assignedAt: String? = null,
     @SerialName("rejection_reason") val alasanTolak: String? = null,
+    @SerialName("is_hidden") val tersembunyi: Boolean = false,
+    @SerialName("ai_verdict") val aiVerdict: String? = null,
+    @SerialName("ai_reason") val aiAlasan: String? = null,
     val categories: Nama? = null,
     val locations: Nama? = null,
 ) {
@@ -36,6 +39,7 @@ data class Profil(
     val role: String? = null,
     @SerialName("class_name") val kelas: String? = null,
     val phone: String? = null,
+    @SerialName("warning_count") val peringatan: Int = 0,
 )
 
 /** Kategori atau lokasi. */
@@ -57,7 +61,7 @@ data class LaporanBaru(
 )
 
 @Serializable
-data class HasilKode(val code: String)
+data class HasilKode(val id: String = "", val code: String)
 
 @Serializable
 data class HasilAmbil(
@@ -82,6 +86,7 @@ data class Sesi(
     val peran: Peran,
     val kelas: String,
     val telepon: String,
+    val peringatan: Int = 0,
 )
 
 /** Status di database → label dan warna yang dipakai di aplikasi. */

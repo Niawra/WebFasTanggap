@@ -64,14 +64,40 @@ async function muatSesi() {
     sesi = null;
     return;
   }
-  const { data: profil } = await sb.from("profiles").select("id, full_name, role, class_name").eq("id", user.id).maybeSingle();
+  const { data: profil } = await sb.from("profiles").select("id, full_name, role, class_name, warning_count").eq("id", user.id).maybeSingle();
   sesi = {
     id: user.id,
     email: user.email,
     nama: (profil && profil.full_name) || user.email.split("@")[0],
     peran: (profil && profil.role) || "siswa",
     kelas: (profil && profil.class_name) || "",
+    peringatan: (profil && profil.warning_count) || 0,
   };
+}
+
+// Alamat backend verifikasi, diturunkan dari alamat chatbot TanggapAI di config.js.
+const VERIFIKASI_URL = String((window.FASTANGGAP_TANGGAPAI && window.FASTANGGAP_TANGGAPAI.apiUrl) || "http://localhost:5001/api/chat").replace(
+  /\/api\/chat\/?$/,
+  "/api/verifikasi-laporan"
+);
+
+// Minta backend menilai laporan dengan AI. Gagal = laporan tetap menunggu petugas.
+async function verifikasiLaporan(idLaporan) {
+  try {
+    const { data } = await sb.auth.getSession();
+    const token = data.session && data.session.access_token;
+    if (!token) return null;
+    const res = await fetch(VERIFIKASI_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ reportId: idLaporan }),
+    });
+    const isi = await res.json().catch(() => null);
+    return isi && isi.success ? { verdict: isi.verdict, alasan: isi.alasan || "" } : null;
+  } catch (e) {
+    console.warn("[FasTanggap] verifikasi AI tidak tersedia", e);
+    return null;
+  }
 }
 
 async function muatReferensi() {
@@ -181,6 +207,9 @@ async function muatLaporan() {
       prioritas: r.priority || "",
       status: dariDb(r.status),
       dibuat: r.created_at,
+      tersembunyi: Boolean(r.is_hidden),
+      aiVerdict: r.ai_verdict || "",
+      aiAlasan: r.ai_reason || "",
       pelaporId: r.reporter_id,
       pelaporNama,
       pelaporKelas: (pelapor && pelapor.class_name) || "",
@@ -239,8 +268,12 @@ const Store = {
   sesi() {
     return sesi;
   },
+  // Laporan yang disembunyikan (asal-asalan) tidak ikut di daftar petugas biasa.
   semuaLaporan() {
-    return cache.laporan.slice();
+    return cache.laporan.filter((l) => !l.tersembunyi);
+  },
+  laporanTersembunyi() {
+    return cache.laporan.filter((l) => l.tersembunyi);
   },
   laporanMilik(idPengguna) {
     return cache.laporan.filter((l) => l.pelaporId === idPengguna);
@@ -257,7 +290,7 @@ const Store = {
   },
   ringkasan() {
     if (sesi && sesi.peran === "petugas") {
-      const s = cache.laporan;
+      const s = cache.laporan.filter((l) => !l.tersembunyi);
       return {
         total: s.length,
         menunggu: s.filter((l) => l.status === "menunggu").length,
@@ -407,11 +440,17 @@ const Store = {
         description: masukan.deskripsi.trim(),
         photo_path,
       })
-      .select("code")
+      .select("id, code")
       .single();
-    if (error) return { ok: false, pesan: pesanGalat(error, "Laporan gagal dikirim. Coba lagi.") };
-    await Promise.all([muatLaporan(), muatPublik()]);
-    return { ok: true, laporan: this.cariKode(data.code) || { kode: data.code } };
+    if (error) {
+      if (String(error.message || "").includes("AKUN_DIBLOKIR")) {
+        return { ok: false, pesan: error.message.replace(/^.*AKUN_DIBLOKIR:\s*/, "") };
+      }
+      return { ok: false, pesan: pesanGalat(error, "Laporan gagal dikirim. Coba lagi.") };
+    }
+    const verifikasi = await verifikasiLaporan(data.id);
+    await Promise.all([muatSesi(), muatLaporan(), muatPublik()]);
+    return { ok: true, verifikasi, laporan: this.cariKode(data.code) || { kode: data.code } };
   },
 
   async ubahStatus(kode, status, catatan, prioritas) {
@@ -429,6 +468,24 @@ const Store = {
     }
     await Promise.all([muatLaporan(), muatPublik()]);
     return { ok: true, laporan: this.cariKode(kode) };
+  },
+
+  /* --- verifikasi laporan asal-asalan (petugas) --- */
+  async tandaiAsal(kode, alasan) {
+    const laporan = this.cariKode(kode);
+    if (!laporan) return { ok: false, pesan: "Laporan tidak ditemukan." };
+    const { error } = await sb.rpc("tandai_asal", { p_id: laporan.id, p_alasan: String(alasan || "").trim() });
+    if (error) return { ok: false, pesan: pesanGalat(error, "Gagal menandai laporan.") };
+    await Promise.all([muatLaporan(), muatPublik()]);
+    return { ok: true };
+  },
+  async pulihkan(kode) {
+    const laporan = this.cariKode(kode);
+    if (!laporan) return { ok: false, pesan: "Laporan tidak ditemukan." };
+    const { error } = await sb.rpc("pulihkan_laporan", { p_id: laporan.id });
+    if (error) return { ok: false, pesan: pesanGalat(error, "Gagal memulihkan laporan.") };
+    await Promise.all([muatLaporan(), muatPublik()]);
+    return { ok: true };
   },
 
   /* --- kategori & lokasi (petugas) --- */

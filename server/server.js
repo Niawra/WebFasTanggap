@@ -1,10 +1,13 @@
 import express from "express";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import healthRouter from "./routes/health.js";
 import chatRouter from "./routes/chat.js";
+import verifikasiRouter from "./routes/verifikasi.js";
 
 // Muat variabel lingkungan dari file .env
 dotenv.config();
@@ -22,6 +25,10 @@ app.use(
 );
 app.disable("x-powered-by");
 
+// Di balik tunnel Cloudflare semua request datang dari 127.0.0.1; percayai satu proxy
+// supaya req.ip = IP pengunjung asli (X-Forwarded-For) dan rate limit tidak dibagi bersama.
+app.set("trust proxy", 1);
+
 // 2. Pembatasan Laju Permintaan (Rate Limiting)
 // Melindungi server dan health check, sementara endpoint /api/chat diproteksi secara khusus oleh chatRateLimiter
 const pembatasUmum = rateLimit({
@@ -29,7 +36,8 @@ const pembatasUmum = rateLimit({
   max: 100, // Maksimal 100 request per IP per 15 menit
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.path === "/api/chat" || req.path === "/chat",
+  // Hanya untuk API; file website (html/css/js/gambar) tidak dihitung.
+  skip: (req) => !req.path.startsWith("/api/") || req.path === "/api/chat",
   message: {
     status: 429,
     error: "Terlalu banyak permintaan. Silakan coba lagi beberapa saat.",
@@ -53,25 +61,43 @@ const asalFrontendDefault = [
 
 const daftarAsalDiizinkan = new Set([...asalFrontendDefault, ...asalFrontendKonfigurasi]);
 
-const opsiCors = {
-  origin: (origin, callback) => {
-    // Izinkan request tanpa origin (seperti curl, mobile app, Postman, atau health check lokal)
-    if (!origin) return callback(null, true);
-
-    const bersih = origin.replace(/\/$/, "");
-    if (daftarAsalDiizinkan.has(bersih)) {
-      callback(null, true);
-    } else {
-      callback(new Error(`Akses CORS ditolak untuk origin: ${origin}`));
-    }
-  },
+const opsiCorsDasar = {
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
   maxAge: 86400, // Cache pre-flight 24 jam
 };
 
-app.use(cors(opsiCors));
+app.use(
+  cors((req, callback) => {
+    const origin = req.headers.origin;
+    // Izinkan request tanpa origin (seperti curl, mobile app, Postman, atau health check lokal)
+    if (!origin) return callback(null, { ...opsiCorsDasar, origin: true });
+
+    const bersih = origin.replace(/\/$/, "");
+    let hostOrigin = "";
+    try {
+      hostOrigin = new URL(bersih).host;
+    } catch {
+      hostOrigin = "";
+    }
+    // Same-origin: frontend disajikan oleh server ini sendiri (mis. lewat tunnel publik)
+    const hostRequest = [req.headers["x-forwarded-host"], req.headers.host].filter(Boolean);
+    const sameOrigin = hostOrigin && hostRequest.includes(hostOrigin);
+
+    if (sameOrigin || daftarAsalDiizinkan.has(bersih)) {
+      callback(null, { ...opsiCorsDasar, origin: true });
+    } else {
+      callback(new Error(`Akses CORS ditolak untuk origin: ${origin}`));
+    }
+  })
+);
+
+// 3b. Sajikan frontend statis (hanya index.html, assets, figure — folder server tidak ikut)
+const ROOT_FRONTEND = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+app.use("/assets", express.static(path.join(ROOT_FRONTEND, "assets")));
+app.use("/figure", express.static(path.join(ROOT_FRONTEND, "figure")));
+app.get(["/", "/index.html"], (req, res) => res.sendFile(path.join(ROOT_FRONTEND, "index.html")));
 
 // 4. Parser Body JSON
 app.use(express.json({ limit: "1mb" }));
@@ -79,6 +105,7 @@ app.use(express.json({ limit: "1mb" }));
 // 5. Mount Routes
 app.use("/api", healthRouter);
 app.use("/api", chatRouter);
+app.use("/api", verifikasiRouter);
 
 // 6. Penanganan Rute Tidak Ditemukan (404)
 app.use((req, res) => {

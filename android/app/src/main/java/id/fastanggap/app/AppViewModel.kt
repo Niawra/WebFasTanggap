@@ -12,6 +12,7 @@ import id.fastanggap.app.data.Ref
 import id.fastanggap.app.data.Repo
 import id.fastanggap.app.data.Sesi
 import id.fastanggap.app.data.Status
+import id.fastanggap.app.data.TanggapAi
 import io.github.jan.supabase.realtime.PostgresAction
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -25,7 +26,11 @@ class AppViewModel : ViewModel() {
         private set
     var sesi by mutableStateOf<Sesi?>(null)
         private set
+    /** Untuk petugas: tanpa laporan yang disembunyikan (asal-asalan). Untuk siswa: semua miliknya. */
     var laporan by mutableStateOf<List<Laporan>>(emptyList())
+        private set
+    /** Laporan asal-asalan yang disembunyikan (hanya terisi untuk petugas). */
+    var tersembunyi by mutableStateOf<List<Laporan>>(emptyList())
         private set
     var profil by mutableStateOf<Map<String, Profil>>(emptyMap())
         private set
@@ -89,8 +94,14 @@ class AppViewModel : ViewModel() {
     suspend fun segarkan() {
         menyegarkan = true
         runCatching {
-            laporan = Repo.laporan()
-            if (sesi?.peran == Peran.PETUGAS) profil = Repo.profil()
+            val semua = Repo.laporan()
+            if (sesi?.peran == Peran.PETUGAS) {
+                laporan = semua.filterNot { it.tersembunyi }
+                tersembunyi = semua.filter { it.tersembunyi }
+                profil = Repo.profil()
+            } else {
+                laporan = semua
+            }
         }.onFailure { kabari("Gagal memuat data. Periksa koneksi internet.") }
         menyegarkan = false
     }
@@ -125,9 +136,35 @@ class AppViewModel : ViewModel() {
 
     suspend fun kirimLaporan(kategoriId: String, lokasiId: String, judul: String, deskripsi: String, foto: ByteArray?): Result<String> {
         val s = sesi ?: return Result.failure(IllegalStateException("Belum masuk"))
-        return runCatching { Repo.kirimLaporan(s.id, kategoriId, lokasiId, judul, deskripsi, foto) }
-            .onSuccess { segarkan() }
+        val hasil = runCatching { Repo.kirimLaporan(s.id, kategoriId, lokasiId, judul, deskripsi, foto) }
+            .getOrElse { e ->
+                val pesan = e.message.orEmpty()
+                return Result.failure(
+                    Exception(
+                        if (pesan.contains("AKUN_DIBLOKIR")) "Akunmu diblokir karena 3 peringatan laporan asal-asalan. Hubungi petugas sarana."
+                        else "Laporan gagal dikirim. Coba lagi.",
+                    ),
+                )
+            }
+        val cek = TanggapAi.verifikasi(hasil.id)
+        runCatching { Repo.muatSesi() }.getOrNull()?.let { sesi = it }
+        segarkan()
+        if (cek?.first == "asal") {
+            val n = sesi?.peringatan ?: 0
+            return Result.failure(Exception("Laporan ditolak otomatis karena asal-asalan (${cek.second}). Peringatan $n/3."))
+        }
+        return Result.success(hasil.code)
     }
+
+    suspend fun tandaiAsal(l: Laporan, alasan: String): Boolean =
+        runCatching { Repo.tandaiAsal(l.id, alasan.ifBlank { "Isi laporan tidak jelas atau tidak sesuai." }) }
+            .onSuccess { segarkan() }
+            .isSuccess
+
+    suspend fun pulihkan(l: Laporan): Boolean =
+        runCatching { Repo.pulihkan(l.id) }
+            .onSuccess { segarkan() }
+            .isSuccess
 
     suspend fun ambil(l: Laporan): String {
         val hasil = runCatching { Repo.ambilTugas(l.id) }.getOrElse { return "Gagal mengambil tugas. Coba lagi." }

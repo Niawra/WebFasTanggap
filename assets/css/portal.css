@@ -2382,3 +2382,100 @@ textarea:focus {
 .chat__form { display: flex; gap: 10px; }
 .chat__form input { flex: 1; min-width: 0; padding: 12px 14px; border: 1px solid var(--garis); border-radius: 10px; font: inherit; }
 .chat__form input:focus { outline: 2px solid var(--merah); outline-offset: 1px; }
+
+/* ---------- Beranda: adegan 3D sebagai pembuka, hanya judul FasTanggap ---------- */
+.cerita__merek {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 28px;
+  padding-bottom: 6vh;
+  pointer-events: none;
+  transition: opacity 0.7s var(--pegas, ease), transform 0.9s var(--pegas, ease);
+}
+.cerita__merek h1 {
+  margin: 0;
+  font-family: var(--font-judul);
+  font-weight: 700;
+  font-size: clamp(54px, 13vw, 176px);
+  line-height: 0.95;
+  letter-spacing: -0.045em;
+  color: #fff;
+  text-shadow: 0 10px 50px rgba(0, 0, 0, 0.45);
+  animation: merek-masuk 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) both 0.15s;
+}
+.cerita__merek h1 span {
+  color: var(--merah);
+  text-shadow: 0 10px 50px rgba(221, 51, 51, 0.35);
+}
+.cerita__mulai {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  animation: merek-masuk 1s ease both 0.7s;
+}
+.cerita__mulai span {
+  width: 24px;
+  height: 38px;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  border-radius: 14px;
+  position: relative;
+}
+.cerita__mulai span::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 7px;
+  width: 4px;
+  height: 8px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: #fff;
+  animation: merek-roda 1.6s ease-in-out infinite;
+}
+.cerita__panggung:not(.cerita--awal) .cerita__merek {
+  opacity: 0;
+  transform: scale(1.12) translateY(-30px);
+}
+.cerita__lapis {
+  transition: opacity 0.6s ease, transform 0.7s var(--pegas, ease);
+}
+.cerita--awal .cerita__lapis {
+  opacity: 0;
+  transform: translateY(28px);
+  pointer-events: none;
+}
+.cerita--awal .cerita__lapis > * {
+  pointer-events: none;
+}
+@keyframes merek-masuk {
+  from {
+    opacity: 0;
+    transform: translateY(26px) scale(0.96);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+@keyframes merek-roda {
+  0% { transform: translateY(0); opacity: 1; }
+  70% { transform: translateY(12px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cerita__merek h1,
+  .cerita__mulai,
+  .cerita__mulai span::after {
+    animation: none;
+  }
+}

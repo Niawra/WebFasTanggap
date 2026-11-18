@@ -57,6 +57,7 @@ object Repo {
             peran = if (profil?.role == "petugas") Peran.PETUGAS else Peran.SISWA,
             kelas = profil?.kelas.orEmpty(),
             telepon = profil?.phone.orEmpty(),
+            peringatan = profil?.peringatan ?: 0,
         )
     }
 
@@ -114,7 +115,7 @@ object Repo {
         judul: String,
         deskripsi: String,
         fotoJpeg: ByteArray?,
-    ): String {
+    ): HasilKode {
         val jalur = fotoJpeg?.let {
             val path = "$idPengguna/${UUID.randomUUID()}.jpg"
             supabase.storage.from(BUCKET).upload(path, it)
@@ -122,7 +123,7 @@ object Repo {
         }
         return supabase.from("reports").insert(
             LaporanBaru(idPengguna, kategoriId, lokasiId, judul.trim(), deskripsi.trim(), jalur),
-        ) { select(Columns.list("code")) }.decodeSingle<HasilKode>().code
+        ) { select(Columns.list("id", "code")) }.decodeSingle<HasilKode>()
     }
 
     suspend fun urlFoto(jalur: String): String =
@@ -141,6 +142,16 @@ object Repo {
         if (status != Status.DITOLAK && catatan.isNotBlank()) {
             supabase.from("report_notes").insert(Catatan(laporan.id, idPetugas, catatan.trim()))
         }
+    }
+
+    /** Petugas: sembunyikan laporan asal-asalan + beri peringatan ke pelapor (migrasi-verifikasi.sql). */
+    suspend fun tandaiAsal(idLaporan: String, alasan: String) {
+        supabase.postgrest.rpc("tandai_asal", buildJsonObject { put("p_id", idLaporan); put("p_alasan", alasan) })
+    }
+
+    /** Petugas: munculkan lagi laporan yang disembunyikan dan cabut peringatannya. */
+    suspend fun pulihkan(idLaporan: String) {
+        supabase.postgrest.rpc("pulihkan_laporan", buildJsonObject { put("p_id", idLaporan) })
     }
 
     /** Nomor WA petugas yang menangani laporan milik pelapor ini (lihat migrasi-aplikasi.sql). */

@@ -21,8 +21,48 @@
     <link rel="stylesheet" href="assets/css/style.css" />
     <link rel="stylesheet" href="assets/css/portal.css" />
     <link rel="stylesheet" href="assets/css/tanggap-ai.css" />
+    <link rel="stylesheet" href="assets/css/auth.css" />
   </head>
   <body>
+    <!-- Layar pembuka: palu memperbaiki kursi rusak, turun ke bawah setelah data siap -->
+    <div class="layar-muat" id="layarMuat" role="status" aria-live="polite" aria-label="Memuat FasTanggap">
+      <div class="layar-muat__isi">
+        <svg class="layar-muat__cincin" viewBox="0 0 120 120" aria-hidden="true">
+          <circle class="layar-muat__jalur" cx="60" cy="60" r="54" />
+          <circle class="layar-muat__busur" cx="60" cy="60" r="54" />
+          <g class="layar-muat__kursi">
+            <ellipse cx="60" cy="94" rx="26" ry="3" fill="#000" opacity="0.08" />
+            <rect x="70" y="34" width="7" height="31" rx="2.5" fill="#b9773f" />
+            <rect x="73" y="40" width="1.5" height="20" rx="0.7" fill="#d9a36f" opacity="0.7" />
+            <rect x="38" y="61" width="42" height="7" rx="2.5" fill="#c98a55" />
+            <rect x="38" y="61" width="42" height="2.2" rx="1.1" fill="#e3b07f" />
+            <rect x="41" y="68" width="5" height="25" rx="2" fill="#a8693a" />
+            <rect x="72" y="68" width="5" height="25" rx="2" fill="#a8693a" />
+            <!-- kaki yang patah -->
+            <rect x="57" y="68" width="5" height="11" rx="2" fill="#a8693a" />
+            <path d="M57 79l2.5-2 2.5 2" fill="none" stroke="#7d4b25" stroke-width="1.2" stroke-linejoin="round" />
+            <rect x="60" y="82" width="5" height="11" rx="2" fill="#a8693a" transform="rotate(16 62.5 87.5)" />
+            <path d="M50 64.5l3 2-2 1.8 3 1.4" fill="none" stroke="#7d4b25" stroke-width="0.9" stroke-linecap="round" />
+          </g>
+          <g class="layar-muat__percik" stroke="#f4b400" stroke-width="2" stroke-linecap="round">
+            <path d="M44 55l-2-6" />
+            <path d="M49 56l3-5" />
+            <path d="M39 58l-5-2" />
+          </g>
+          <g class="layar-muat__palu">
+            <g transform="translate(29 47)">
+              <rect x="0" y="-2.2" width="25" height="4.4" rx="2.2" fill="#8a5a33" />
+              <rect x="-1" y="-2.6" width="7" height="5.2" rx="2.4" fill="#5b3a21" />
+              <rect x="22" y="-8.5" width="10" height="17" rx="2.2" fill="#5f6b78" />
+              <rect x="22" y="-8.5" width="3" height="17" rx="1.2" fill="#8794a3" />
+            </g>
+          </g>
+        </svg>
+        <div class="layar-muat__merek">Fas<strong>Tanggap</strong></div>
+        <div class="layar-muat__teks">Menyiapkan fasilitas sekolah...</div>
+      </div>
+    </div>
+
     <a class="lewati" href="#konten">Lompat ke konten</a>
 
     <header class="bilah" id="bilah">

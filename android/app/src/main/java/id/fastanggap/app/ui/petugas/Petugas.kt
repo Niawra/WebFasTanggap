@@ -15,6 +15,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,6 +38,7 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Inbox
 import androidx.compose.material.icons.rounded.Logout
 import androidx.compose.material.icons.rounded.PanTool
+import androidx.compose.material.icons.rounded.Report
 import androidx.compose.material.icons.rounded.Phone
 import androidx.compose.material.icons.rounded.TaskAlt
 import androidx.compose.material3.Icon
@@ -198,7 +200,12 @@ fun AksiPetugas(vm: AppViewModel, l: Laporan) {
     var sibuk by remember { mutableStateOf(false) }
     var mode by remember(l.id) { mutableStateOf<Status?>(null) }
     var catatan by remember(l.id) { mutableStateOf("") }
+    var yakinAsal by remember(l.id) { mutableStateOf(false) }
 
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    if (l.aiVerdict == "ragu") {
+        Text("TanggapAI: laporan ini kurang jelas. ${l.aiAlasan.orEmpty()}", color = Warna.Tunggu, fontSize = 13.sp)
+    }
     when {
         l.assignedTo == null -> TombolUtama(
             "Ambil tugas",
@@ -261,6 +268,24 @@ fun AksiPetugas(vm: AppViewModel, l: Laporan) {
             }
         }
     }
+    // Laporan asal-asalan: sembunyikan + 1 peringatan ke pelapor. Tekan dua kali untuk memastikan.
+    TombolSekunder(
+        if (yakinAsal) "Yakin? Tekan lagi untuk menyembunyikan" else "Tandai asal-asalan",
+        ikon = Icons.Rounded.Report,
+        modifier = Modifier.fillMaxWidth(),
+        onClick = {
+            if (!yakinAsal) {
+                yakinAsal = true
+            } else {
+                lingkup.launch {
+                    val ok = vm.tandaiAsal(l, catatan)
+                    vm.kabari(if (ok) "${l.kode} disembunyikan, pelapor diberi peringatan" else "Gagal menandai. Coba lagi.")
+                    yakinAsal = false
+                }
+            }
+        },
+    )
+    }
 }
 
 /** Ringkasan beranimasi: cincin progres + batang per kategori yang tumbuh. */
@@ -272,6 +297,7 @@ fun RingkasanPetugas(vm: AppViewModel) {
     val selesaiRasio = (jumlah[Status.SELESAI] ?: 0) / total.toFloat()
     val perKategori = semua.groupingBy { it.kategori }.eachCount().toList().sortedByDescending { it.second }.take(6)
     val maks = (perKategori.maxOfOrNull { it.second } ?: 1).toFloat()
+    val lingkup = rememberCoroutineScope()
 
     val tumbuh = remember { Animatable(0f) }
     LaunchedEffect(semua.size) {
@@ -318,6 +344,35 @@ fun RingkasanPetugas(vm: AppViewModel) {
                             Spacer(Modifier.height(8.dp))
                             AngkaBerhitung(jumlah[s] ?: 0, ukuran = 24.dp)
                             Text(s.label, color = Warna.TintaLembut, fontSize = 11.sp, maxLines = 1)
+                        }
+                    }
+                }
+            }
+        }
+        if (vm.tersembunyi.isNotEmpty()) {
+            item {
+                Kartu(Modifier.padding(horizontal = 18.dp, vertical = 8.dp).fillMaxWidth()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Laporan asal-asalan (${vm.tersembunyi.size})", style = MaterialTheme.typography.titleMedium)
+                        Text("Disembunyikan dan pelapornya diberi peringatan. Pulihkan jika ternyata laporan asli.", color = Warna.TintaLembut, fontSize = 12.sp)
+                        vm.tersembunyi.forEach { h ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(h.title, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                    Text(h.aiAlasan ?: h.alasanTolak.orEmpty(), color = Warna.TintaLembut, fontSize = 12.sp, maxLines = 2)
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "Pulihkan",
+                                    color = Warna.Merah,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.clip(RoundedCornerShape(50)).clickable {
+                                        lingkup.launch {
+                                            vm.kabari(if (vm.pulihkan(h)) "${h.kode} dipulihkan" else "Gagal memulihkan")
+                                        }
+                                    }.padding(horizontal = 10.dp, vertical = 6.dp),
+                                )
+                            }
                         }
                     }
                 }

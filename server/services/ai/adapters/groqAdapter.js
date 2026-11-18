@@ -231,6 +231,7 @@ export async function kirimPesanGroq({
   userName = "",
   model = DEFAULT_GROQ_MODEL,
   client = null,
+  ekstra = "",
 } = {}) {
   // 1. Validasi Input Pesan Pengguna
   if (!message || typeof message !== "string" || message.trim() === "") {
@@ -275,7 +276,7 @@ export async function kirimPesanGroq({
   // Kebijakan Privasi Siswa: Untuk akun 'siswa', nama lengkap TIDAK dikirim ke pihak ketiga
   const roleAman = ["siswa", "petugas"].includes(role) ? role : "tamu";
   const namaAman = roleAman === "siswa" ? "" : String(userName || "").trim().slice(0, 30);
-  const instruksiSistem = buildSystemPrompt({ role: roleAman, name: namaAman });
+  const instruksiSistem = buildSystemPrompt({ role: roleAman, name: namaAman , ekstra });
 
   // 7. Normalisasi Riwayat Percakapan
   const riwayatTervalidasi = konversiRiwayatGroq(history);

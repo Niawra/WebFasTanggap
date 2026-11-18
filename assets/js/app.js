@@ -260,6 +260,8 @@ function pasangCerita() {
     panggung.style.setProperty("--prog", (p / (BAB_CERITA.length - 1)).toFixed(4));
     progres.style.transform = `scaleX(${p / (BAB_CERITA.length - 1)})`;
     jejak.style.transform = `scaleX(${Math.min(1, p / (BAB_CERITA.length - 1))})`;
+    // Awal halaman: hanya judul FasTanggap di atas adegan 3D; teks cerita muncul setelah mulai digulir.
+    panggung.classList.toggle("cerita--awal", p < 0.3);
     const i = Math.min(BAB_CERITA.length - 1, Math.round(p));
     if (i === aktif) return;
     aktif = i;
@@ -493,57 +495,48 @@ function halamanBeranda(parameter) {
   const akun = sesi ? (sesi.peran === "petugas" ? "#/petugas" : "#/laporan") : "#/daftar";
 
   akar.innerHTML = `
-    <div class="tirai" id="tirai">
-    <section class="pembuka" id="pembuka">
-      <div class="bungkus pembuka__isi">
-        <div class="pembuka__kiri">
-          <p class="pembuka__sekolah" data-muncul><span class="simpul"></span>SMK Telkom Purwokerto</p>
-          <h1 class="pembuka__judul" aria-label="Fasilitas rusak? Laporkan lewat FasTanggap.">
-            <span class="pembuka__ketik" aria-hidden="true"><span id="ketik">${esc(KELUHAN[0])}</span><i class="kursor"></i></span>
-            <span class="pembuka__tetap" aria-hidden="true">Laporkan lewat <span class="tanda">FasTanggap</span>.</span>
-          </h1>
-          <p class="pembuka__pimpin" data-muncul style="--tunda:.15s">
-            Laporan diterima petugas sarana, diberi nomor, dan bisa kamu pantau sampai selesai diperbaiki.
-            Tidak perlu lagi mengeluh di grup kelas.
-          </p>
-          <div class="pembuka__aksi" data-muncul style="--tunda:.25s">
-            <a class="tombol tombol--utama tombol--besar" href="#/lapor">${ikon("tulis")} Buat laporan</a>
-            <a class="tombol tombol--garis tombol--besar" href="${akun}">${sesi ? "Buka akun saya" : "Daftar akun siswa"}</a>
-          </div>
-          <form class="lacak-baris" id="lacakCepat" novalidate data-muncul style="--tunda:.35s">
-            <label for="kodeCepat">Sudah punya nomor laporan?</label>
-            <div class="lacak-baris__kolom">
-              ${ikon("cari")}
-              <input type="text" id="kodeCepat" name="kode" placeholder="FT-2611-001" autocomplete="off" />
-              <button class="tombol tombol--tinta tombol--kecil" type="submit">Lacak</button>
-            </div>
-            <p class="medan__galat" id="galatCepat" role="alert"></p>
-            <div class="lacak-hasil" id="hasilCepat" aria-live="polite"></div>
-          </form>
+    <section class="cerita" id="cerita" aria-label="Perjalanan satu laporan">
+      <div class="cerita__panggung" id="ceritaPanggung" data-bab="0">
+        <canvas class="cerita__kanvas" id="ceritaKanvas" aria-hidden="true"></canvas>
+        <div class="cerita__cadangan" aria-hidden="true"></div>
+        <div class="cerita__merek">
+          <h1>Fas<span>Tanggap</span></h1>
+          <div class="cerita__mulai" aria-hidden="true"><span></span>Gulir ke bawah</div>
         </div>
-
-        <div class="pembuka__kanan" data-muncul="kanan" style="--tunda:.2s">
-          <div class="papan-langsung">
-            <div class="papan-langsung__kepala">
-              <span class="papan-langsung__nyala"><i></i>${papanContoh ? "Contoh papan" : "Laporan masuk"}</span>
-              <span class="papan-langsung__jam" id="jamPapan"></span>
-            </div>
-            <ul class="papan-langsung__daftar" id="papanDaftar">
-              ${papan.slice(0, 4).map(barisPapan).join("")}
-            </ul>
-            <div class="papan-langsung__kaki">
-              <span>${papanContoh ? "Data contoh, belum ada laporan" : `${r.total} laporan tercatat`}</span>
-              <a href="#/lacak">Lacak &rarr;</a>
-            </div>
+        <div class="bungkus cerita__lapis">
+          <p class="cerita__label"><span class="simpul"></span>Perjalanan satu laporan</p>
+          <div class="cerita__teks">
+            ${BAB_CERITA.map(
+              (b, i) => `
+              <article class="cerita__bab" data-bab="${i}" ${i ? 'aria-hidden="true"' : ""}>
+                <span class="cerita__no">${String(i + 1).padStart(2, "0")} / ${String(BAB_CERITA.length).padStart(2, "0")}</span>
+                <h2>${b.judul}</h2>
+                <p>${b.isi}</p>
+              </article>`
+            ).join("")}
           </div>
-          <div class="pembuka__stiker" aria-hidden="true">
-            <b>${r.total ? Math.round(persen(r.selesai)) : 0}%</b>
-            <span>laporan selesai</span>
-          </div>
+          <aside class="cerita__tiket" aria-live="polite">
+            <header>
+              <span class="cerita__kode">FT-2611-012</span>
+              <span id="ceritaStatus">${statusPil("menunggu")}</span>
+            </header>
+            <b>Meja &amp; kursi kelas rusak, lampu mati</b>
+            <small>Meja dan kursi · Ruang kelas XI PPLG 4</small>
+            <div class="cerita__jejak"><i id="ceritaJejak"></i></div>
+            <p id="ceritaCatatan">Belum ada yang melaporkan.</p>
+            <span class="cerita__cap" aria-hidden="true">SELESAI</span>
+          </aside>
+          <nav class="cerita__rel" aria-label="Lompat ke tahap">
+            ${BAB_CERITA.map((b, i) => `<button type="button" data-ke-bab="${i}" aria-label="Tahap ${i + 1}: ${b.judul}"><span>${b.pendek}</span></button>`).join("")}
+          </nav>
+          <a class="tombol tombol--utama cerita__ajak" href="#/lapor">Laporkan kerusakan di sekolahmu</a>
+          <div class="cerita__gulir" aria-hidden="true"><span></span>Gulir untuk memperbaiki</div>
         </div>
+        <div class="cerita__progres" aria-hidden="true"><i id="ceritaProgres"></i></div>
       </div>
     </section>
 
+    <div class="tirai" id="tirai">
     <section class="kapsul" id="kapsul" aria-label="Cara mengirim laporan">
       <div class="kapsul__panggung" id="kapsulPanggung">
         <p class="kapsul__judul"><span class="simpul"></span>Lapor itu singkat. Gulir dan lihat.</p>
@@ -649,42 +642,6 @@ function halamanBeranda(parameter) {
       </div>
     </section>
 
-    <section class="cerita" id="cerita" aria-label="Perjalanan satu laporan">
-      <div class="cerita__panggung" id="ceritaPanggung" data-bab="0">
-        <canvas class="cerita__kanvas" id="ceritaKanvas" aria-hidden="true"></canvas>
-        <div class="cerita__cadangan" aria-hidden="true"></div>
-        <div class="bungkus cerita__lapis">
-          <p class="cerita__label"><span class="simpul"></span>Perjalanan satu laporan</p>
-          <div class="cerita__teks">
-            ${BAB_CERITA.map(
-              (b, i) => `
-              <article class="cerita__bab" data-bab="${i}" ${i ? 'aria-hidden="true"' : ""}>
-                <span class="cerita__no">${String(i + 1).padStart(2, "0")} / ${String(BAB_CERITA.length).padStart(2, "0")}</span>
-                <h2>${b.judul}</h2>
-                <p>${b.isi}</p>
-              </article>`
-            ).join("")}
-          </div>
-          <aside class="cerita__tiket" aria-live="polite">
-            <header>
-              <span class="cerita__kode">FT-2611-012</span>
-              <span id="ceritaStatus">${statusPil("menunggu")}</span>
-            </header>
-            <b>Meja &amp; kursi kelas rusak, lampu mati</b>
-            <small>Meja dan kursi · Ruang kelas XI PPLG 4</small>
-            <div class="cerita__jejak"><i id="ceritaJejak"></i></div>
-            <p id="ceritaCatatan">Belum ada yang melaporkan.</p>
-            <span class="cerita__cap" aria-hidden="true">SELESAI</span>
-          </aside>
-          <nav class="cerita__rel" aria-label="Lompat ke tahap">
-            ${BAB_CERITA.map((b, i) => `<button type="button" data-ke-bab="${i}" aria-label="Tahap ${i + 1}: ${b.judul}"><span>${b.pendek}</span></button>`).join("")}
-          </nav>
-          <a class="tombol tombol--utama cerita__ajak" href="#/lapor">Laporkan kerusakan di sekolahmu</a>
-          <div class="cerita__gulir" aria-hidden="true"><span></span>Gulir untuk memperbaiki</div>
-        </div>
-        <div class="cerita__progres" aria-hidden="true"><i id="ceritaProgres"></i></div>
-      </div>
-    </section>
 
     <section class="bagian bagian--hangat bagian--rapat">
       <div class="bungkus">
@@ -749,7 +706,7 @@ function halamanBeranda(parameter) {
     </section>`;
 
   /* --- Lacak cepat --- */
-  document.querySelector("#lacakCepat").addEventListener("submit", async (e) => {
+  document.querySelector("#lacakCepat")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const input = document.querySelector("#kodeCepat");
     const kode = input.value.trim();
@@ -774,14 +731,16 @@ function halamanBeranda(parameter) {
 
   /* --- Jam papan --- */
   const jam = document.querySelector("#jamPapan");
-  const tulisJam = () => {
-    if (!jam.isConnected) return hentikanPemutar();
-    jam.textContent = new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
-  };
-  tulisJam();
-  pemutarBeranda.push(setInterval(tulisJam, 15000));
+  if (jam) {
+    const tulisJam = () => {
+      if (!jam.isConnected) return hentikanPemutar();
+      jam.textContent = new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+    };
+    tulisJam();
+    pemutarBeranda.push(setInterval(tulisJam, 15000));
+  }
 
-  if (!hemat) {
+  if (!hemat && document.querySelector("#ketik")) {
     /* --- Judul mengetik: keluhan bergantian --- */
     const ketik = document.querySelector("#ketik");
     let iKeluhan = 0;
@@ -842,70 +801,85 @@ function halamanBeranda(parameter) {
 
 /* ---------- Halaman: daftar akun siswa ---------------------------------- */
 
+// Tombol "Lihat" / "Sembunyikan" kata sandi di halaman masuk & daftar.
+function pasangLihatSandi() {
+  akar.querySelectorAll("[data-lihat]").forEach((tombol) => {
+    tombol.addEventListener("click", () => {
+      const input = document.getElementById(tombol.dataset.lihat);
+      const tampil = input.type === "password";
+      input.type = tampil ? "text" : "password";
+      tombol.textContent = tampil ? "Sembunyikan" : "Lihat";
+      tombol.setAttribute("aria-label", tampil ? "Sembunyikan kata sandi" : "Tampilkan kata sandi");
+    });
+  });
+}
+
 function halamanDaftar() {
   if (Store.sesi()) {
     location.hash = "#/laporan";
     return;
   }
   akar.innerHTML = `
-    <section class="halaman">
-      <div class="bungkus dua-kolom">
-        <div>
-          <div class="halaman__kepala">
-            <div>
-              <h1>Daftar akun siswa</h1>
-              <p>Akun dipakai untuk mengirim laporan dan memantau statusnya. Akun petugas dibuat oleh sekolah.</p>
-            </div>
-          </div>
-          <form class="formulir" id="formDaftar" novalidate>
-            <div class="medan__baris">
-              <div class="medan">
-                <label for="dNama">Nama lengkap <span class="medan__wajib">(wajib)</span></label>
-                <input type="text" id="dNama" autocomplete="name" maxlength="60" />
-                <p class="medan__galat" id="gNama" role="alert"></p>
-              </div>
-              <div class="medan">
-                <label for="dKelas">Kelas <span class="medan__wajib">(wajib)</span></label>
-                <input type="text" id="dKelas" placeholder="Contoh: XI PPLG 4" maxlength="20" />
-                <p class="medan__galat" id="gKelas" role="alert"></p>
-              </div>
-            </div>
-            <div class="medan">
-              <label for="dPengguna">Email <span class="medan__wajib">(wajib)</span></label>
-              <input type="email" id="dPengguna" autocomplete="email" maxlength="80" placeholder="nama@contoh.com" />
-              <p class="medan__bantuan">Dipakai untuk masuk ke FasTanggap.</p>
-              <p class="medan__galat" id="gPengguna" role="alert"></p>
-            </div>
-            <div class="medan__baris">
-              <div class="medan">
-                <label for="dSandi">Kata sandi <span class="medan__wajib">(wajib)</span></label>
-                <input type="password" id="dSandi" autocomplete="new-password" />
-                <p class="medan__bantuan">Minimal 6 karakter.</p>
-                <p class="medan__galat" id="gSandi" role="alert"></p>
-              </div>
-              <div class="medan">
-                <label for="dUlang">Ulangi kata sandi <span class="medan__wajib">(wajib)</span></label>
-                <input type="password" id="dUlang" autocomplete="new-password" />
-                <p class="medan__galat" id="gUlang" role="alert"></p>
-              </div>
-            </div>
-            <p class="galat-kotak" id="gDaftar" role="alert" hidden></p>
-            <div class="formulir__aksi">
-              <button class="tombol tombol--utama" type="submit">Buat akun</button>
-              <a class="tombol tombol--teks" href="#/masuk">Sudah punya akun? Masuk</a>
-            </div>
-          </form>
-        </div>
-        <aside class="kartu kartu-isi">
-          <h2>Kenapa perlu akun?</h2>
-          <ul class="daftar-centang">
-            <li>Semua laporanmu tersimpan di satu tempat.</li>
-            <li>Kamu bisa membaca catatan tindak lanjut dari petugas.</li>
-            <li>Petugas tahu siapa yang melapor bila perlu konfirmasi.</li>
+    <section class="auth">
+      <div class="auth__kartu">
+        <aside class="auth__sisi">
+          <div class="auth__logo"><span>FT</span>FasTanggap</div>
+          <h2>Buat akun siswa dalam satu menit.</h2>
+          <p>Dengan akun, semua laporanmu tersimpan di satu tempat dan petugas bisa menghubungimu bila perlu.</p>
+          <ul class="auth__poin">
+            <li>Semua laporanmu tersimpan rapi.</li>
+            <li>Baca catatan tindak lanjut dari petugas.</li>
+            <li>Ngobrol langsung dengan petugas di tiap laporan.</li>
           </ul>
         </aside>
+        <form class="auth__form formulir" id="formDaftar" novalidate>
+          <div>
+            <h1>Daftar akun siswa</h1>
+            <p class="auth__sub">Isi data dirimu. Akun petugas dibuat oleh sekolah.</p>
+          </div>
+          <div class="medan__baris">
+            <div class="medan">
+              <label for="dNama">Nama lengkap</label>
+              <input type="text" id="dNama" autocomplete="name" maxlength="60" placeholder="Nama sesuai absen" />
+              <p class="medan__galat" id="gNama" role="alert"></p>
+            </div>
+            <div class="medan">
+              <label for="dKelas">Kelas</label>
+              <input type="text" id="dKelas" placeholder="XI PPLG 4" maxlength="20" />
+              <p class="medan__galat" id="gKelas" role="alert"></p>
+            </div>
+          </div>
+          <div class="medan">
+            <label for="dPengguna">Email</label>
+            <input type="email" id="dPengguna" autocomplete="email" maxlength="80" placeholder="nama@sekolah.sch.id" />
+            <p class="medan__galat" id="gPengguna" role="alert"></p>
+          </div>
+          <div class="medan__baris">
+            <div class="medan">
+              <label for="dSandi">Kata sandi</label>
+              <div class="auth__sandi">
+                <input type="password" id="dSandi" autocomplete="new-password" placeholder="Min. 6 karakter" />
+                <button class="auth__lihat" type="button" data-lihat="dSandi" aria-label="Tampilkan kata sandi">Lihat</button>
+              </div>
+              <p class="medan__galat" id="gSandi" role="alert"></p>
+            </div>
+            <div class="medan">
+              <label for="dUlang">Ulangi kata sandi</label>
+              <div class="auth__sandi">
+                <input type="password" id="dUlang" autocomplete="new-password" placeholder="Ketik ulang" />
+                <button class="auth__lihat" type="button" data-lihat="dUlang" aria-label="Tampilkan kata sandi">Lihat</button>
+              </div>
+              <p class="medan__galat" id="gUlang" role="alert"></p>
+            </div>
+          </div>
+          <p class="galat-kotak" id="gDaftar" role="alert" hidden></p>
+          <button class="tombol tombol--utama auth__kirim" type="submit">Buat akun</button>
+          <p class="auth__ganti">Sudah punya akun? <a href="#/masuk">Masuk</a></p>
+        </form>
       </div>
     </section>`;
+
+  pasangLihatSandi();
 
   document.querySelector("#formDaftar").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -1029,48 +1003,45 @@ function halamanMasuk() {
     return;
   }
   akar.innerHTML = `
-    <section class="halaman">
-      <div class="bungkus dua-kolom">
-        <div>
-          <div class="halaman__kepala">
-            <div>
-              <h1>Masuk ke FasTanggap</h1>
-              <p>Siswa memakai akun untuk mengirim laporan. Petugas memakai akun untuk memeriksa dan menindaklanjuti.</p>
-            </div>
-          </div>
-          <form class="formulir" id="formMasuk" novalidate>
-            <div class="medan">
-              <label for="namaPengguna">Email</label>
-              <input type="email" id="namaPengguna" name="namaPengguna" autocomplete="email" placeholder="nama@contoh.com" />
-              <p class="medan__galat" id="galatNama" role="alert"></p>
-            </div>
-            <div class="medan">
-              <label for="sandi">Kata sandi</label>
-              <input type="password" id="sandi" name="sandi" autocomplete="current-password" />
-              <p class="medan__galat" id="galatSandi" role="alert"></p>
-            </div>
-            <p class="galat-kotak" id="galatMasuk" role="alert" hidden></p>
-            <div class="formulir__aksi">
-              <button class="tombol tombol--utama" type="submit">Masuk</button>
-              <a class="tombol tombol--teks" href="#/daftar">Belum punya akun? Daftar</a>
-            </div>
-          </form>
-        </div>
-        <aside class="kartu kartu-isi">
-          <h2>Belum punya akun?</h2>
-          <p>Siswa bisa mendaftar sendiri dengan email. Akun petugas dibuat oleh sekolah.</p>
-          <p style="margin-top:18px">
-            <a class="tombol tombol--garis tombol--kecil" href="#/daftar">Daftar akun siswa</a>
-            <button class="tombol tombol--teks tombol--kecil" type="button" id="isiPetugas">Isi email petugas demo</button>
-          </p>
+    <section class="auth">
+      <div class="auth__kartu">
+        <aside class="auth__sisi">
+          <div class="auth__logo"><span>FT</span>FasTanggap</div>
+          <h2>Fasilitas rusak? Laporkan, pantau, beres.</h2>
+          <p>Laporan dari siswa langsung diterima petugas sarana dan bisa dipantau sampai selesai.</p>
+          <ul class="auth__poin">
+            <li>Kirim laporan lengkap dengan foto dalam hitungan detik.</li>
+            <li>Dapat kabar setiap kali status laporan berubah.</li>
+            <li>Tanya TanggapAI untuk bantu menyusun laporan.</li>
+          </ul>
         </aside>
+        <form class="auth__form formulir" id="formMasuk" novalidate>
+          <div>
+            <h1>Masuk</h1>
+            <p class="auth__sub">Selamat datang kembali. Masuk dengan email akunmu.</p>
+          </div>
+          <div class="medan">
+            <label for="namaPengguna">Email</label>
+            <input type="email" id="namaPengguna" name="namaPengguna" autocomplete="email" placeholder="nama@sekolah.sch.id" />
+            <p class="medan__galat" id="galatNama" role="alert"></p>
+          </div>
+          <div class="medan">
+            <label for="sandi">Kata sandi</label>
+            <div class="auth__sandi">
+              <input type="password" id="sandi" name="sandi" autocomplete="current-password" placeholder="Kata sandi" />
+              <button class="auth__lihat" type="button" data-lihat="sandi" aria-label="Tampilkan kata sandi">Lihat</button>
+            </div>
+            <p class="medan__galat" id="galatSandi" role="alert"></p>
+          </div>
+          <p class="galat-kotak" id="galatMasuk" role="alert" hidden></p>
+          <button class="tombol tombol--utama auth__kirim" type="submit">Masuk</button>
+          <p class="auth__ganti">Belum punya akun? <a href="#/daftar">Daftar akun siswa</a></p>
+          <p class="auth__ganti" style="font-size:13px">Akun petugas dibuat oleh pihak sekolah.</p>
+        </form>
       </div>
     </section>`;
 
-  document.querySelector("#isiPetugas").addEventListener("click", () => {
-    document.querySelector("#namaPengguna").value = "petugas@fastanggap.test";
-    document.querySelector("#sandi").focus();
-  });
+  pasangLihatSandi();
 
   document.querySelector("#formMasuk").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -1315,6 +1286,13 @@ function halamanLapor() {
         toast(hasil.pesan, "galat");
         return;
       }
+      const v = hasil.verifikasi;
+      if (v && v.verdict === "asal") {
+        const n = (Store.sesi() && Store.sesi().peringatan) || 0;
+        toast(`Laporan ditolak otomatis karena asal-asalan (${v.alasan}). Akunmu mendapat peringatan ${n}/3.`, "galat");
+        location.hash = "#/laporan";
+        return;
+      }
       toast(`Laporan ${hasil.laporan.kode} terkirim.`);
       location.hash = `#/laporan/${encodeURIComponent(hasil.laporan.kode)}?baru=1`;
     })();
@@ -1344,6 +1322,22 @@ function perkecilGambar(berkas) {
   });
 }
 
+/* ---------- Peringatan laporan asal-asalan ------------------------------ */
+
+function bannerPeringatan(sesi) {
+  const n = (sesi && sesi.peringatan) || 0;
+  if (!n) return "";
+  const blokir = n >= 3;
+  return `<div class="peringatan-akun" role="alert" style="margin:0 0 20px;padding:14px 18px;border-radius:14px;background:#fce9e7;color:#8a1c22;border:1px solid #f3c4bf">
+      <b>${blokir ? "Akunmu diblokir dari membuat laporan" : `Peringatan ${n}/3`}</b>
+      <div style="margin-top:4px;font-size:14px">${
+        blokir
+          ? "Kamu sudah 3 kali mengirim laporan asal-asalan. Hubungi petugas sarana untuk membuka blokir."
+          : "Ada laporanmu yang ditandai asal-asalan dan disembunyikan. Setelah 3 peringatan, akunmu tidak bisa membuat laporan baru."
+      }</div>
+    </div>`;
+}
+
 /* ---------- Halaman: laporan saya --------------------------------------- */
 
 function halamanLaporanSaya() {
@@ -1364,6 +1358,7 @@ function halamanLaporanSaya() {
           </div>
           <a class="tombol tombol--utama" href="#/lapor">Buat laporan baru</a>
         </div>
+        ${bannerPeringatan(sesi)}
         ${
           daftar.length === 0
             ? `<div class="kosong">
@@ -1618,7 +1613,13 @@ function bukaTindakan(kode) {
           <textarea id="catatanBaru" maxlength="400" placeholder="Contoh: kerusakan sesuai laporan, teknisi dijadwalkan Kamis."></textarea>
           <p class="medan__galat" id="galatCatatan" role="alert"></p>
         </div>
-        <div class="sheet__aksi">
+        ${
+          laporan.aiVerdict === "ragu"
+            ? `<p class="medan__bantuan" style="color:#b7791f">TanggapAI menilai laporan ini kurang jelas: ${esc(laporan.aiAlasan)}</p>`
+            : ""
+        }
+        <div class="sheet__aksi" style="flex-wrap:wrap">
+          <button class="tombol tombol--garis" type="button" id="tandaiAsal" title="Sembunyikan laporan dan beri peringatan ke pelapor">Tandai asal-asalan</button>
           <button class="tombol tombol--garis" type="button" id="batalTindakan">Batal</button>
           <button class="tombol tombol--utama" type="submit">Simpan perubahan</button>
         </div>
@@ -1633,6 +1634,18 @@ function bukaTindakan(kode) {
   };
   dialog.querySelector(".sheet__tutup").addEventListener("click", tutup);
   dialog.querySelector("#batalTindakan").addEventListener("click", tutup);
+  dialog.querySelector("#tandaiAsal").addEventListener("click", async () => {
+    const alasan = dialog.querySelector("#catatanBaru").value.trim() || "Isi laporan tidak jelas atau tidak sesuai.";
+    if (!confirm("Sembunyikan laporan ini dan beri 1 peringatan ke pelapor? (Bisa dipulihkan dari saringan Asal-asalan.)")) return;
+    const hasil = await Store.tandaiAsal(kode, alasan);
+    if (!hasil.ok) {
+      toast(hasil.pesan, "galat");
+      return;
+    }
+    tutup();
+    toast("Laporan disembunyikan dan pelapor mendapat peringatan.");
+    gambarRute();
+  });
   dialog.addEventListener("cancel", (e) => {
     e.preventDefault();
     tutup();
@@ -1706,8 +1719,14 @@ function halamanPetugas() {
     ["diproses", "Diproses", r.diproses],
     ["selesai", "Selesai", r.selesai],
     ["ditolak", "Ditolak", r.ditolak],
+    ["asal", "Asal-asalan", Store.laporanTersembunyi().length],
   ];
-  const tampil = saringAktif === "semua" ? semua : semua.filter((l) => l.status === saringAktif);
+  const tampil =
+    saringAktif === "semua"
+      ? semua
+      : saringAktif === "asal"
+        ? Store.laporanTersembunyi()
+        : semua.filter((l) => l.status === saringAktif);
 
   akar.innerHTML = `
     <section class="halaman">
@@ -1772,7 +1791,11 @@ function halamanPetugas() {
                          (l) => `
                        <tr>
                          <td class="sel-kode">${esc(l.kode)}</td>
-                         <td class="sel-judul">${esc(l.judul)}<small>${esc(namaKategori(l.kategoriId))} · ${esc(relatif(l.dibuat))}</small></td>
+                         <td class="sel-judul">${esc(l.judul)}${
+                           l.aiVerdict === "ragu" && !l.tersembunyi
+                             ? ` <span title="${esc(l.aiAlasan)}" style="font-size:11px;padding:2px 8px;border-radius:99px;background:#fdf3e1;color:#b7791f;white-space:nowrap">Perlu dicek (AI)</span>`
+                             : ""
+                         }<small>${esc(namaKategori(l.kategoriId))} · ${esc(relatif(l.dibuat))}</small></td>
                          <td>${esc(l.lokasi)}</td>
                          <td>${
                            l.prioritas
@@ -1780,7 +1803,11 @@ function halamanPetugas() {
                              : `<span style="color:var(--tinta-lembut)">-</span>`
                          }</td>
                          <td>${statusPil(l.status)}</td>
-                         <td><button class="tombol tombol--garis tombol--kecil" type="button" data-tindak="${esc(l.kode)}">Periksa</button></td>
+                         <td>${
+                           l.tersembunyi
+                             ? `<button class="tombol tombol--garis tombol--kecil" type="button" data-pulihkan="${esc(l.kode)}" title="${esc(l.aiAlasan || "")}">Pulihkan</button>`
+                             : `<button class="tombol tombol--garis tombol--kecil" type="button" data-tindak="${esc(l.kode)}">Periksa</button>`
+                         }</td>
                        </tr>`
                        )
                        .join("")}
@@ -1799,6 +1826,20 @@ function halamanPetugas() {
   });
   akar.querySelectorAll("[data-tindak]").forEach((tombol) => {
     tombol.addEventListener("click", () => bukaTindakan(tombol.dataset.tindak));
+  });
+  akar.querySelectorAll("[data-pulihkan]").forEach((tombol) => {
+    tombol.addEventListener("click", async () => {
+      if (!confirm("Pulihkan laporan ini dan cabut peringatan pelapornya?")) return;
+      tombol.disabled = true;
+      const hasil = await Store.pulihkan(tombol.dataset.pulihkan);
+      if (!hasil.ok) {
+        toast(hasil.pesan, "galat");
+        tombol.disabled = false;
+        return;
+      }
+      toast("Laporan dipulihkan dan peringatan dicabut.");
+      halamanPetugas();
+    });
   });
   const muat = document.querySelector("#muatContoh");
   if (muat) {
@@ -2150,10 +2191,24 @@ window.addEventListener("hashchange", () => {
   window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
 });
 
+// Layar pembuka turun ke bawah setelah data siap (minimal tampil sebentar supaya animasinya terlihat).
+function tutupPembuka() {
+  const el = document.getElementById("layarMuat");
+  if (!el) return;
+  el.classList.add("selesai");
+  el.setAttribute("aria-hidden", "true");
+  setTimeout(() => el.remove(), 800);
+}
+
 sedangMemuat();
+const minimalPembuka = new Promise((r) => setTimeout(r, 1300));
 Store.siapkan()
   .catch((galat) => console.warn("[FasTanggap] gagal menyiapkan data", galat))
   .then(() => {
     gambarAksi();
     gambarRute();
-  });
+    return minimalPembuka;
+  })
+  .then(tutupPembuka);
+// Pengaman: jangan pernah terjebak di layar pembuka.
+setTimeout(tutupPembuka, 9000);

@@ -164,6 +164,7 @@ export async function kirimPesanTanggapAi({
   userName = "",
   model = DEFAULT_GEMINI_MODEL,
   client = null,
+  ekstra = "",
 } = {}) {
   // 1. Validasi Input Pesan Pengguna
   if (!message || typeof message !== "string" || message.trim() === "") {
@@ -189,7 +190,7 @@ export async function kirimPesanTanggapAi({
   // 3. Bangun System Instruction Sesuai Konteks FasTanggap
   // Catatan Keamanan: Role dipaksa 'tamu' kecuali jika ada verifikasi server resmi
   const roleAman = ["siswa", "petugas"].includes(role) ? role : "tamu";
-  const instruksiSistem = buildSystemPrompt({ role: roleAman, name: userName });
+  const instruksiSistem = buildSystemPrompt({ role: roleAman, name: userName , ekstra });
 
   // 4. Validasi dan Normalisasi Riwayat Percakapan
   const riwayatTervalidasi = validasiRiwayatPercakapan(history);

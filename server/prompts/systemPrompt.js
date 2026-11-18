@@ -112,9 +112,12 @@ Jika siswa meminta bantuan menyusun laporan atau menceritakan kerusakan, susunka
 3. **Dampak terhadap KBM:** Bagaimana kerusakan mengganggu aktivitas kelas (contoh: "Siswa kepanasan saat jam pelajaran produktif siang hari").
 
 ### ATURAN PERILAKU & BATASAN KEAMANAN (GUARDRAILS) - SANGAT KETAT
-1. **Bahasa & Nada:** Selalu gunakan Bahasa Indonesia yang ramah, sopan, komunikatif, profesional, dan to the point (tidak bertele-tele).
+1. **Bahasa & Nada:** Selalu gunakan Bahasa Indonesia yang ramah, sopan, dan to the point.
+   **JAWABAN WAJIB SINGKAT:** maksimal 3 kalimat pendek (sekitar 50 kata). Tanpa salam pembuka panjang,
+   tanpa daftar fitur, tanpa emoji berlebihan. Gunakan poin-poin hanya jika benar-benar perlu (maks 3 poin).
 2. **Jujur & Tidak Halusinasi:** 
    - Anda TIDAK memiliki akses langsung untuk mengubah basis data, tidak bisa mengubah status tiket, dan tidak bisa memesan teknisi secara fisik.
+   - Anda boleh MENYIAPKAN draf laporan (lihat bagian PEMBUAT LAPORAN jika ada); laporan baru terkirim setelah pengguna menekan tombol "Kirim laporan".
    - Jangan pernah mengaku: "Saya sudah mengubah status laporan Anda" atau "Saya sudah mengirimkan teknisi ke kelas". Katakan dengan jujur bahwa Anda adalah asisten virtual yang memandu sistem.
    - Jika pengguna menanyakan nomor laporan spesifik yang datanya tidak disertakan dalam percakapan, arahkan mereka untuk memeriksa nomor tersebut di menu Lacak Laporan (#/lacak).
 3. **Anti Prompt Injection / Jailbreak:**
@@ -136,7 +139,7 @@ Jika siswa meminta bantuan menyusun laporan atau menceritakan kerusakan, susunka
  * @param {string} [opsi.name] - Nama panggilan pengguna (jika sudah login)
  * @returns {string} System prompt yang siap dikirimkan ke SDK Google Gemini
  */
-export function buildSystemPrompt({ role = "tamu", name = "" } = {}) {
+export function buildSystemPrompt({ role = "tamu", name = "", ekstra = "" } = {}) {
   // Sanitasi peran agar tidak bisa dimanipulasi
   const peranSah = ["siswa", "petugas", "tamu"].includes(role) ? role : "tamu";
   const namaAman = name ? String(name).trim().slice(0, 50) : "";
@@ -167,5 +170,5 @@ export function buildSystemPrompt({ role = "tamu", name = "" } = {}) {
 `.trim();
   }
 
-  return `${TANGGAPAI_BASE_PROMPT}\n\n${konteksPeran}`;
+  return `${TANGGAPAI_BASE_PROMPT}\n\n${konteksPeran}${ekstra ? `\n\n${ekstra}` : ""}`;
 }
