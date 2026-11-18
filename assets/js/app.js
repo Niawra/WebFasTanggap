@@ -232,7 +232,10 @@ function progresCerita() {
   const bagian = document.querySelector("#cerita");
   if (!bagian) return 0;
   const r = bagian.getBoundingClientRect();
-  const jarak = bagian.offsetHeight - innerHeight;
+  // Dengan tirai aktif, 100svh terakhir dipakai kapsul untuk naik menutupi adegan.
+  const kapsul = document.querySelector("#kapsul");
+  const tutup = kapsul ? Math.max(0, -parseFloat(getComputedStyle(kapsul).marginTop) || 0) : 0;
+  const jarak = bagian.offsetHeight - innerHeight - tutup;
   const t = Math.min(1, Math.max(0, -r.top / Math.max(1, jarak)));
   return t * (BAB_CERITA.length - 1);
 }
@@ -291,7 +294,9 @@ function pasangCerita() {
   titik.forEach((el) =>
     el.addEventListener("click", () => {
       const bagian = document.querySelector("#cerita");
-      const jarak = bagian.offsetHeight - innerHeight;
+      const kapsul = document.querySelector("#kapsul");
+      const tutup = kapsul ? Math.max(0, -parseFloat(getComputedStyle(kapsul).marginTop) || 0) : 0;
+      const jarak = bagian.offsetHeight - innerHeight - tutup;
       const tujuan = bagian.offsetTop + (jarak * Number(el.dataset.keBab)) / (BAB_CERITA.length - 1);
       scrollTo({ top: tujuan + 2, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
     })
@@ -307,7 +312,8 @@ let pendengarKapsul = null;
 function pasangKapsul() {
   const bagian = document.querySelector("#kapsul");
   if (!bagian) return;
-  const pembuka = document.querySelector("#pembuka");
+  // Yang ditutupi kapsul: panggung adegan 3D di atasnya.
+  const pembuka = document.querySelector("#ceritaPanggung");
   const panggung = bagian.querySelector("#kapsulPanggung");
   const bentuk = bagian.querySelector("#kapsulBentuk");
   const isi = bagian.querySelector("#kapsulIsi");
@@ -337,7 +343,7 @@ function pasangKapsul() {
   let tiraiAktif = false;
   let vektor = [];
   const ukur = () => {
-    tiraiAktif = !!pembuka && getComputedStyle(pembuka).position === "sticky";
+    tiraiAktif = !!pembuka && parseFloat(getComputedStyle(bagian).marginTop) < 0;
     if (pembuka && !tiraiAktif) {
       pembuka.style.transform = "";
       pembuka.style.opacity = "";
@@ -495,6 +501,7 @@ function halamanBeranda(parameter) {
   const akun = sesi ? (sesi.peran === "petugas" ? "#/petugas" : "#/laporan") : "#/daftar";
 
   akar.innerHTML = `
+    <div class="tirai" id="tirai">
     <section class="cerita" id="cerita" aria-label="Perjalanan satu laporan">
       <div class="cerita__panggung" id="ceritaPanggung" data-bab="0">
         <canvas class="cerita__kanvas" id="ceritaKanvas" aria-hidden="true"></canvas>
@@ -536,7 +543,6 @@ function halamanBeranda(parameter) {
       </div>
     </section>
 
-    <div class="tirai" id="tirai">
     <section class="kapsul" id="kapsul" aria-label="Cara mengirim laporan">
       <div class="kapsul__panggung" id="kapsulPanggung">
         <p class="kapsul__judul"><span class="simpul"></span>Lapor itu singkat. Gulir dan lihat.</p>
