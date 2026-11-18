@@ -1,0 +1,29 @@
+{
+  "name": "fastanggap-tanggapai-server",
+  "version": "1.0.0",
+  "description": "Backend API service untuk asisten cerdas TanggapAI pada FasTanggap",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node test_ai_abstraction.mjs && node test_groq_service.mjs && node test_openai_service.mjs && node test_gemini_service.mjs && node test_system_prompt.mjs && node test_health.mjs && node test_chat_route.mjs && node test_rate_limit.mjs && node test_supabase_auth.mjs && node test_frontend_hardening.mjs && node test_tahap6_e2e.mjs"
+  },
+  "keywords": [
+    "fastanggap",
+    "tanggapai",
+    "express",
+    "gemini-api"
+  ],
+  "author": "FasTanggap Team",
+  "license": "ISC",
+  "dependencies": {
+    "@google/genai": "^0.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "openai": "^7.59.0"
+  }
+}
