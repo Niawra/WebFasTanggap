@@ -1,0 +1,547 @@
+/* ==========================================================================
+   Slide beranda "Lewat aplikasi": mockup HP aplikasi Android FasTanggap
+   ========================================================================== */
+
+.aplikasi {
+  position: relative;
+  z-index: 2;
+  height: 340vh;
+  background: radial-gradient(80% 60% at 85% 30%, #3a2522 0%, rgba(58, 37, 34, 0) 70%), #1d1817;
+  color: #fff;
+}
+
+.aplikasi__panggung {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 460px) auto;
+  justify-content: center;
+  align-items: center;
+  gap: clamp(32px, 7vw, 110px);
+  padding: calc(var(--tinggi-bilah, 76px) + 16px) 24px 24px;
+}
+
+.aplikasi__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  font: 600 13.5px var(--font-judul);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.aplikasi__teks h2 {
+  margin: 0 0 28px;
+  color: #fff;
+  font-size: clamp(32px, 4.2vw, 52px);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+
+.aplikasi__langkah {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.aplikasi__langkah li {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  opacity: 0.45;
+  transform: translateX(0);
+  transition: opacity 0.35s, background 0.35s, border-color 0.35s, transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.aplikasi__langkah li > span {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  font: 700 14px var(--font-judul);
+  transition: background 0.35s;
+}
+
+.aplikasi__langkah b {
+  display: block;
+  font: 600 16px var(--font-judul);
+}
+
+.aplikasi__langkah small {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 13.5px;
+}
+
+.aplikasi__langkah li.aktif {
+  opacity: 1;
+  background: rgba(221, 51, 51, 0.16);
+  border-color: rgba(221, 51, 51, 0.55);
+  transform: translateX(8px);
+}
+
+.aplikasi__langkah li.aktif > span,
+.aplikasi__langkah li.lewat > span {
+  background: var(--merah);
+}
+
+.aplikasi__langkah li.lewat {
+  opacity: 0.8;
+}
+
+/* ---------- HP ---------- */
+
+.hp {
+  --w: min(300px, 78vw);
+  position: relative;
+  width: var(--w);
+  height: min(610px, calc(100svh - var(--tinggi-bilah, 76px) - 56px));
+  padding: 12px;
+  border-radius: 46px;
+  background: #0f0c0c;
+  box-shadow: 0 0 0 2px #3a3333, 0 40px 80px -30px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.hp__poni {
+  position: absolute;
+  z-index: 3;
+  top: 22px;
+  left: 50%;
+  width: 26%;
+  height: 20px;
+  margin-left: -13%;
+  border-radius: 999px;
+  background: #0f0c0c;
+}
+
+.hp__layar {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 36px;
+  background: #f6f3f1;
+  color: #1d1b1b;
+  display: flex;
+  flex-direction: column;
+  padding-top: 44px;
+}
+
+.hp__kepala {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 10px;
+}
+
+.hp__kembali {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #fff;
+  font-size: 15px;
+}
+
+.hp__progres {
+  flex: 1;
+  display: flex;
+  gap: 4px;
+}
+
+.hp__progres i {
+  flex: 1;
+  height: 4px;
+  border-radius: 99px;
+  background: #e8e2df;
+  position: relative;
+  overflow: hidden;
+}
+
+.hp__progres i::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #dd3333;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.hp__progres i.isi::after {
+  transform: scaleX(1);
+}
+
+.hp__nomor {
+  font: 600 11px var(--font-isi);
+  color: #6e6766;
+}
+
+.hp__jendela {
+  flex: 1;
+  overflow: hidden;
+}
+
+.hp__geser {
+  display: flex;
+  width: 400%;
+  height: 100%;
+  will-change: transform;
+}
+
+.hp__hal {
+  width: 25%;
+  padding: 0 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hp__hal h4 {
+  margin: 4px 0 8px;
+  font: 700 21px/1.15 var(--font-judul);
+  color: #1d1b1b;
+}
+
+.hp__kisi {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.hp__ubin {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 16px;
+  background: #fff;
+  color: #dd3333;
+  border: 2px solid transparent;
+  transition: border-color 0.25s, background 0.25s, transform 0.25s;
+}
+
+.hp__ubin b {
+  font: 600 13px var(--font-judul);
+  color: #1d1b1b;
+}
+
+.hp__cari {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: #fff;
+  color: #8a8382;
+  font-size: 12px;
+}
+
+.hp__cari svg,
+.hp__baris svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.hp__baris {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  background: #fff;
+  font: 500 13px var(--font-isi);
+  color: #1d1b1b;
+  border: 2px solid transparent;
+  transition: border-color 0.25s, background 0.25s;
+}
+
+.hp__baris svg {
+  color: #dd3333;
+}
+
+.hp__isian {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #e3dbd7;
+  font-size: 13px;
+}
+
+.hp__isian--tinggi {
+  min-height: 70px;
+  align-items: flex-start;
+  color: #4b4544;
+}
+
+.hp__kursor {
+  width: 1.5px;
+  height: 15px;
+  margin-left: 1px;
+  background: #dd3333;
+  animation: hp-kedip 1s steps(1) infinite;
+}
+
+.hp__foto {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1.5px dashed #d3c9c4;
+  color: #8a8382;
+  font-size: 12px;
+  transition: background 0.3s, border-color 0.3s, color 0.3s;
+}
+
+.hp__foto svg {
+  width: 18px;
+  height: 18px;
+}
+
+.hp__foto.ada {
+  border-style: solid;
+  border-color: #2f8a55;
+  background: #e3f4ea;
+  color: #1f6b41;
+}
+
+.hp__foto.ada small {
+  font-size: 0;
+}
+.hp__foto.ada small::after {
+  content: "kerusakan-ac.jpg ¹3";
+  font-size: 12px;
+}
+
+.hp__ringkas {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.hp__ringkas small {
+  font: 700 10px var(--font-isi);
+  letter-spacing: 0.08em;
+  color: #8a8382;
+}
+
+.hp__ringkas b {
+  font: 500 13px/1.35 var(--font-isi);
+}
+
+.hp__tombol {
+  margin-top: auto;
+  display: grid;
+  place-items: center;
+  height: 44px;
+  border-radius: 999px;
+  background: #dd3333;
+  color: #fff;
+  font: 600 14px var(--font-judul);
+  transition: transform 0.15s, filter 0.2s;
+}
+
+.hp__ubin.pilih {
+  border-color: #dd3333;
+  background: #fce9e7;
+  transform: scale(0.97);
+}
+
+.hp__baris.pilih {
+  border-color: #dd3333;
+  background: #fce9e7;
+}
+
+.hp__tombol.pilih {
+  filter: brightness(0.92);
+}
+
+.hp__terkirim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  background: #f6f3f1;
+  opacity: 0;
+  transform: scale(1.05);
+  pointer-events: none;
+  transition: opacity 0.4s, transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.hp__terkirim.tampil {
+  opacity: 1;
+  transform: none;
+}
+
+.hp__centang {
+  display: grid;
+  place-items: center;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: #2f8a55;
+  color: #fff;
+  font-size: 34px;
+  transform: scale(0.4);
+  transition: transform 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) 0.1s;
+}
+
+.hp__terkirim.tampil .hp__centang {
+  transform: none;
+}
+
+.hp__terkirim b {
+  font: 700 21px var(--font-judul);
+}
+
+.hp__kode {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #1d1b1b;
+  color: #fff;
+  font: 700 14px var(--font-judul);
+  letter-spacing: 0.05em;
+}
+
+.hp__terkirim small {
+  color: #6e6766;
+  font-size: 12.5px;
+}
+
+/* Jari: lingkaran semi transparan yang mengecil saat mengetuk. */
+.hp__jari {
+  position: absolute;
+  z-index: 4;
+  left: 0;
+  top: 0;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+  border: 2px solid rgba(29, 27, 27, 0.35);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  transition: transform 0.35s cubic-bezier(0.3, 0.8, 0.3, 1), opacity 0.3s, scale 0.15s;
+}
+
+.hp__jari.ketuk {
+  scale: 0.78;
+  background: rgba(221, 51, 51, 0.45);
+}
+
+.hp__jari::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 2px solid rgba(221, 51, 51, 0.6);
+  opacity: 0;
+}
+
+.hp__jari.ketuk::after {
+  animation: hp-riak 0.6s ease-out infinite;
+}
+
+@keyframes hp-kedip {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes hp-riak {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2);
+  }
+}
+
+/* Layar lebar: slide aplikasi naik menutupi slide kapsul (isi 3 kolom). */
+@media (min-width: 961px) and (min-height: 700px) and (prefers-reduced-motion: no-preference) {
+  .tirai .kapsul {
+    height: calc(360vh + 100svh);
+  }
+  .tirai .aplikasi {
+    margin-top: -100svh;
+    border-radius: 40px 40px 0 0;
+    box-shadow: 0 -40px 80px -40px rgba(0, 0, 0, 0.6);
+  }
+  .tirai .aplikasi::before {
+    content: "";
+    position: absolute;
+    z-index: 1;
+    top: 14px;
+    left: 50%;
+    width: 56px;
+    height: 5px;
+    margin-left: -28px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.25);
+  }
+  .tirai .aplikasi__panggung {
+    border-radius: 40px 40px 0 0;
+  }
+}
+
+/* HP / tablet kecil: teks di atas, HP di bawah. */
+@media (max-width: 960px) {
+  .aplikasi__panggung {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    align-content: center;
+    gap: 18px;
+    padding-top: calc(var(--tinggi-bilah, 76px) + 8px);
+  }
+  .aplikasi__teks {
+    text-align: center;
+  }
+  .aplikasi__teks h2 {
+    margin-bottom: 0;
+    font-size: 28px;
+  }
+  .aplikasi__langkah {
+    display: none;
+  }
+  .aplikasi__label {
+    margin-bottom: 10px;
+  }
+  .hp {
+    --w: min(270px, 72vw);
+    height: min(540px, calc(100svh - var(--tinggi-bilah, 76px) - 150px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hp__kursor,
+  .hp__jari.ketuk::after {
+    animation: none;
+  }
+}
