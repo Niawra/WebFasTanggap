@@ -1470,9 +1470,42 @@ function perkecilGambar(berkas) {
 
 /* ---------- Peringatan laporan asal-asalan ------------------------------ */
 
-function bannerPeringatan() {
-  return ""; // Fitur peringatan dihapus: laporan asal-asalan cukup ditolak.
+// Tanpa blokir: laporan asal-asalan ditolak AI, pelapor cukup diberi notif peringatan.
+const KUNCI_PERINGATAN = "ft-peringatan-dibaca";
+function peringatanDibaca() {
+  try {
+    return JSON.parse(localStorage.getItem(KUNCI_PERINGATAN) || "[]");
+  } catch (e) {
+    return [];
+  }
 }
+function bannerPeringatan(sesi) {
+  if (!sesi) return "";
+  const dibaca = peringatanDibaca();
+  const ditolakAi = Store.laporanMilik(sesi.id).filter(
+    (l) => l.status === "ditolak" && l.aiVerdict === "asal" && !dibaca.includes(l.kode)
+  );
+  if (!ditolakAi.length) return "";
+  const terbaru = ditolakAi[0];
+  return `
+    <div class="banner-peringatan" role="alert">
+      <div>
+        <b>Peringatan: ${ditolakAi.length > 1 ? `${ditolakAi.length} laporanmu` : `laporan ${esc(terbaru.kode)}`} ditolak TanggapAI</b>
+        <p>${esc(terbaru.aiAlasan ||"Isi laporan tidak jelas atau bukan kerusakan fasilitas.")}
+        Tulis laporan dengan jelas: apa yang rusak dan di mana.</p>
+      </div>
+      <button class="tombol tombol--garis" type="button" data-tutup-peringatan="${esc(ditolakAi.map((l) => l.kode).join(","))}">Mengerti</button>
+    </div>`;
+}
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-tutup-peringatan]");
+  if (!t) return;
+  try {
+    const semua = new Set([...peringatanDibaca(), ...t.dataset.tutupPeringatan.split(",")]);
+    localStorage.setItem(KUNCI_PERINGATAN, JSON.stringify([...semua]));
+  } catch (err) {}
+  t.closest(".banner-peringatan").remove();
+});
 
 /* ---------- Halaman: laporan saya --------------------------------------- */
 

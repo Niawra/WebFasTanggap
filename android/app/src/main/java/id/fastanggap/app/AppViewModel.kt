@@ -183,7 +183,7 @@ class AppViewModel private constructor(contoh: Boolean) : ViewModel() {
                 val pesan = e.message.orEmpty()
                 return Result.failure(
                     Exception(
-                        if (pesan.contains("AKUN_DIBLOKIR")) "Akunmu diblokir karena 3 peringatan laporan asal-asalan. Hubungi petugas sarana."
+                        if (pesan.contains("AKUN_DIBLOKIR")) "Laporan gagal dikirim. Minta petugas menjalankan migrasi-tolak-otomatis.sql di Supabase."
                         else "Laporan gagal dikirim. Coba lagi.",
                     ),
                 )
