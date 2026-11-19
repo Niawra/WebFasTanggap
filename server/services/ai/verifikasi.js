@@ -4,7 +4,10 @@
  * Memakai provider AI yang sama dengan chatbot (AI_PROVIDER: openai | groq).
  */
 
-import { getActiveAiProvider } from "./index.js";
+import { denganCadangan } from "./index.js";
+
+// Timeout per provider; dipendekkan lewat AI_TIMEOUT_MS supaya cadangan sempat dicoba.
+const batasWaktuMs = () => Number(process.env.AI_TIMEOUT_MS) || 25000;
 import { getOpenAiClient, DEFAULT_OPENAI_MODEL } from "./adapters/openaiAdapter.js";
 import { getGroqClient, DEFAULT_GROQ_MODEL } from "./adapters/groqAdapter.js";
 
@@ -17,8 +20,7 @@ Nilai SATU laporan dan pilih salah satu verdict:
 Bersikap hati-hati: pilih "asal" HANYA jika sangat jelas. Jika ragu, pilih "ragu".
 Jawab HANYA dengan JSON satu baris: {"verdict":"valid|ragu|asal","alasan":"<maks 20 kata, bahasa Indonesia>"}`;
 
-function klienDanModel() {
-  const provider = getActiveAiProvider();
+function klienDanModel(provider) {
   if (provider === "openai") return { client: getOpenAiClient(), model: process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL };
   if (provider === "groq") return { client: getGroqClient(), model: process.env.GROQ_MODEL || DEFAULT_GROQ_MODEL };
   throw new Error(`Verifikasi laporan belum mendukung provider '${provider}'.`);
@@ -43,7 +45,6 @@ export function uraiVerdict(teks) {
  * @returns {Promise<{ verdict: 'valid'|'ragu'|'asal', alasan: string }>}
  */
 export async function nilaiLaporan(laporan, { client: klienUji = null, model: modelUji } = {}) {
-  const { client, model } = klienUji ? { client: klienUji, model: modelUji || "uji" } : klienDanModel();
   const isi = [
     `Judul: ${String(laporan.judul || "").slice(0, 200)}`,
     `Kategori: ${laporan.kategori || "-"}`,
@@ -51,7 +52,7 @@ export async function nilaiLaporan(laporan, { client: klienUji = null, model: mo
     `Deskripsi: ${String(laporan.deskripsi || "").slice(0, 1500)}`,
   ].join("\n");
 
-  const hasil = await client.chat.completions.create(
+  const minta = ({ client, model }) => client.chat.completions.create(
     {
       model,
       messages: [
@@ -61,8 +62,11 @@ export async function nilaiLaporan(laporan, { client: klienUji = null, model: mo
       max_tokens: 150,
       temperature: 0,
     },
-    { signal: AbortSignal.timeout(25000) }
+    { signal: AbortSignal.timeout(batasWaktuMs()) }
   );
+  const hasil = klienUji
+    ? await minta({ client: klienUji, model: modelUji || "uji" })
+    : await denganCadangan((p) => minta(klienDanModel(p)));
 
   const v = uraiVerdict(hasil?.choices?.[0]?.message?.content);
   // Balasan tidak terbaca -> jangan menghukum siswa, serahkan ke petugas.
