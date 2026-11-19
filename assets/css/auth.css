@@ -411,3 +411,29 @@
     font-size: 24px;
   }
 }
+
+
+/* ---------- Tombol login akun sekolah (Google) ---------- */
+.tombol-sekolah {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  width: 100%; min-height: 52px; padding: 10px 18px;
+  border: 1.5px solid var(--garis-kuat, #d5cbc5); border-radius: 14px;
+  background: #fff; color: var(--tinta, #2e2e2e);
+  font: 600 15px/1.25 var(--font-judul, "Poppins", sans-serif);
+  cursor: pointer; text-align: center;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+.tombol-sekolah svg { width: 22px; height: 22px; flex-shrink: 0; }
+.tombol-sekolah:hover { border-color: var(--tinta-lembut, #5c5c5c); box-shadow: 0 6px 18px -12px rgba(46, 46, 46, 0.5); }
+.tombol-sekolah:active { transform: scale(0.98); }
+.tombol-sekolah:focus-visible { outline: 3px solid var(--merah-lembut, #fbe9e7); outline-offset: 2px; border-color: var(--merah, #dd3333); }
+.tombol-sekolah:disabled { opacity: 0.7; cursor: progress; }
+.pemisah-atau {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 13px; color: var(--tinta-lembut, #5c5c5c);
+}
+.pemisah-atau::before, .pemisah-atau::after { content: ""; flex: 1; height: 1px; background: var(--garis, #e7e0dc); }
+@media (max-width: 420px) { .tombol-sekolah { font-size: 13.5px; gap: 10px; } }
+
+.tombol-sekolah__bantuan { margin: -4px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--tinta-lembut, #5c5c5c); text-align: center; }
+.galat-kotak.kotak-sukses { background: #eaf6ee; border-color: #b9e0c6; color: #1f6b3d; }
