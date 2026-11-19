@@ -515,7 +515,8 @@ const Store = {
       .single();
     if (error) {
       if (String(error.message || "").includes("AKUN_DIBLOKIR")) {
-        return { ok: false, pesan: error.message.replace(/^.*AKUN_DIBLOKIR:\s*/, "") };
+        // Blokir sudah dihapus; muncul hanya kalau migrasi-tolak-otomatis.sql belum dijalankan.
+        return { ok: false, pesan: "Laporan gagal dikirim. Minta petugas menjalankan migrasi-tolak-otomatis.sql di Supabase." };
       }
       return { ok: false, pesan: pesanGalat(error, "Laporan gagal dikirim. Coba lagi.") };
     }

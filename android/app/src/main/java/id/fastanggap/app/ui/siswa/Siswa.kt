@@ -46,6 +46,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,7 +87,7 @@ fun BerandaSiswa(vm: AppViewModel, buka: (Laporan) -> Unit, lapor: () -> Unit, s
     PullToRefreshBox(isRefreshing = vm.menyegarkan, onRefresh = { lingkup.launch { vm.segarkan() } }) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = RuangBilah)) {
             item { JudulBesar("Halo, ${sesi.nama.substringBefore(" ")}", sub = sesi.kelas.ifBlank { "Siswa" }) }
-            item { BannerPeringatan(sesi.peringatan) }
+            item { BannerPeringatan(vm.laporan.filter { it.reporterId == sesi.id }) }
             item {
                 // Kartu ajakan melapor: merah penuh, bisa ditekan.
                 Kartu(Modifier.padding(horizontal = 18.dp, vertical = 8.dp).fillMaxWidth(), onClick = lapor, padding = PaddingValues(0.dp)) {
@@ -153,7 +154,7 @@ fun LaporanSaya(vm: AppViewModel, buka: (Laporan) -> Unit) {
     PullToRefreshBox(isRefreshing = vm.menyegarkan, onRefresh = { lingkup.launch { vm.segarkan() } }) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = RuangBilah)) {
             item { JudulBesar("Laporan saya") }
-            item { BannerPeringatan(sesi.peringatan) }
+            item { BannerPeringatan(vm.laporan.filter { it.reporterId == sesi.id }) }
             item { Saringan(saring) { saring = it } }
             if (milik.isEmpty()) {
                 item { Kosong("Tidak ada laporan", "Belum ada laporan dengan status ini.", Icons.Rounded.Inbox) }
@@ -395,7 +396,33 @@ private fun Garis(l: Laporan, vm: AppViewModel) {
     }
 }
 
-/** Fitur peringatan dihapus: laporan asal-asalan cukup ditolak otomatis. */
+/** Tanpa blokir: laporan asal-asalan ditolak TanggapAI, pelapor cukup diberi notif peringatan. */
 @Composable
-@Suppress("UNUSED_PARAMETER")
-fun BannerPeringatan(jumlah: Int) {}
+fun BannerPeringatan(milik: List<Laporan>) {
+    var ditutup by rememberSaveable { mutableStateOf(false) }
+    val ditolakAi = milik.filter { it.status == "ditolak" && it.aiVerdict == "asal" }
+    if (ditutup || ditolakAi.isEmpty()) return
+    val terbaru = ditolakAi.first()
+    Box(
+        Modifier.padding(horizontal = 18.dp, vertical = 8.dp).fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp)).background(Color(0xFFFFF7EA)).padding(16.dp),
+    ) {
+        Column(Modifier.padding(end = 28.dp)) {
+            Text(
+                if (ditolakAi.size > 1) "Peringatan: ${ditolakAi.size} laporanmu ditolak TanggapAI"
+                else "Peringatan: laporan ${terbaru.kode} ditolak TanggapAI",
+                fontWeight = FontWeight.Bold, color = Color(0xFF5A3700), fontSize = 15.sp,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                (terbaru.aiAlasan?.takeIf { it.isNotBlank() } ?: "Isi laporan tidak jelas atau bukan kerusakan fasilitas.") +
+                    " Tulis laporan dengan jelas: apa yang rusak dan di mana.",
+                color = Color(0xFF6B4200), fontSize = 13.sp,
+            )
+        }
+        Icon(
+            Icons.Rounded.Close, "Tutup peringatan", tint = Color(0xFF6B4200),
+            modifier = Modifier.align(Alignment.TopEnd).size(22.dp).clickable { ditutup = true },
+        )
+    }
+}
