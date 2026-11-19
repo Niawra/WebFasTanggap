@@ -165,7 +165,7 @@ fun TanggapAiLayar(vm: AppViewModel, tutup: () -> Unit) {
                                             pesan.add(PesanAi(true, "Laporan **$kode** terkirim ke petugas. Pantau di tab Laporan."))
                                         }
                                         .onFailure { e ->
-                                            val asal = e.message.orEmpty().contains("asal-asalan")
+                                            val asal = e.message.orEmpty().contains("ditolak otomatis")
                                             statusDraf[p.id] = if (asal) "Ditolak otomatis" else ""
                                             pesan.add(PesanAi(true, e.message ?: "Laporan gagal dikirim.", galat = true))
                                         }
@@ -276,5 +276,17 @@ private fun markdownSederhana(teks: String): AnnotatedString = buildAnnotatedStr
     val bagian = bersih.split("**")
     bagian.forEachIndexed { i, s ->
         if (i % 2 == 1) withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(s) } else append(s)
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(name = "TanggapAI · Gelembung & draf", showBackground = true)
+@Composable
+private fun PreviewGelembungAi() {
+    TemaFasTanggap {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            GelembungAi(PesanAi(dariAi = false, teks = "Lampu kelasku mati"))
+            GelembungAi(PesanAi(dariAi = true, teks = "Baik, aku siapkan **draf laporan** untukmu."))
+            KartuDraf(id.fastanggap.app.data.ContohData.draf, status = null, kirim = {})
+        }
     }
 }

@@ -101,6 +101,7 @@ import id.fastanggap.app.ui.TombolSekunder
 import id.fastanggap.app.ui.TombolUtama
 import id.fastanggap.app.ui.Warna
 import id.fastanggap.app.ui.pegas
+import id.fastanggap.app.ui.awalAnimasi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -361,8 +362,8 @@ private fun BarisRingkas(label: String, isi: String) {
 /** Layar sukses: lingkaran tergambar, centang muncul, kode laporan memantul masuk. */
 @Composable
 private fun Terkirim(kode: String, tutup: () -> Unit, lihat: () -> Unit) {
-    val gambar = remember { Animatable(0f) }
-    val muncul = remember { Animatable(0f) }
+    val gambar = awalAnimasi().let { v -> remember { Animatable(v) } }
+    val muncul = awalAnimasi().let { v -> remember { Animatable(v) } }
     LaunchedEffect(Unit) {
         gambar.animateTo(1f, tween(700))
         muncul.animateTo(1f, pegas())
@@ -432,3 +433,31 @@ private fun siapkanFoto(konteks: Context, uri: Uri): Pair<ByteArray, Bitmap>? = 
     bmp.compress(Bitmap.CompressFormat.JPEG, 80, keluaran)
     keluaran.toByteArray() to bmp
 }.getOrNull()
+
+@androidx.compose.ui.tooling.preview.Preview(name = "Lapor · Langkah", showBackground = true, heightDp = 900)
+@Composable
+private fun PreviewLaporLangkah() {
+    id.fastanggap.app.ui.TemaFasTanggap {
+        val k = id.fastanggap.app.data.ContohData.kategori
+        val l = id.fastanggap.app.data.ContohData.lokasi
+        androidx.compose.foundation.layout.Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(24.dp)) {
+            PilihKategori(k, k[1]) {}
+            PilihLokasi(l, l[0]) {}
+            Ringkas(k[1], l[0], "Lampu kelas mati", "Dua lampu di sisi kiri tidak menyala.", null)
+        }
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(name = "Lapor · Isi keterangan", showBackground = true, heightDp = 700)
+@Composable
+private fun PreviewIsiKeterangan() {
+    id.fastanggap.app.ui.TemaFasTanggap {
+        IsiKeterangan("Lampu kelas mati", {}, "Dua lampu tidak menyala.", {}, null) { _, _ -> }
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(name = "Lapor · Terkirim", device = "spec:width=411dp,height=891dp", showSystemUi = true)
+@Composable
+private fun PreviewTerkirim() {
+    id.fastanggap.app.ui.TemaFasTanggap { Terkirim("FT-0001", tutup = {}, lihat = {}) }
+}

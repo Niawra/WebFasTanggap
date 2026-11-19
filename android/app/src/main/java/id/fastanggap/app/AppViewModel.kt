@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import id.fastanggap.app.data.ContohData
 import id.fastanggap.app.data.Laporan
 import id.fastanggap.app.data.Peran
 import id.fastanggap.app.data.Profil
@@ -21,7 +22,9 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
 
-class AppViewModel : ViewModel() {
+class AppViewModel private constructor(contoh: Boolean) : ViewModel() {
+    constructor() : this(false)
+
     var memuat by mutableStateOf(true)
         private set
     var sesi by mutableStateOf<Sesi?>(null)
@@ -48,10 +51,24 @@ class AppViewModel : ViewModel() {
     private var pantau: Job? = null
 
     init {
-        viewModelScope.launch {
+        if (!contoh) viewModelScope.launch {
             sesi = runCatching { Repo.muatSesi() }.getOrNull()
             if (sesi != null) mulaiSesi()
             memuat = false
+        }
+    }
+
+    companion object {
+        /** Hanya untuk @Preview: ViewModel berisi data palsu, tanpa menyentuh jaringan. */
+        fun contoh(peran: Peran = Peran.SISWA, masuk: Boolean = true, memuat: Boolean = false): AppViewModel = AppViewModel(true).apply {
+            this.memuat = memuat
+            if (!masuk) return@apply
+            val petugas = peran == Peran.PETUGAS
+            sesi = if (petugas) ContohData.petugas else ContohData.siswa
+            laporan = ContohData.laporan
+            profil = ContohData.profil
+            kategori = ContohData.kategori
+            lokasi = ContohData.lokasi
         }
     }
 
@@ -61,13 +78,38 @@ class AppViewModel : ViewModel() {
 
     suspend fun masuk(email: String, sandi: String): String? {
         return try {
-            sesi = Repo.masuk(email, sandi)
+            val baru = Repo.masuk(email, sandi)
+            if (baru != null && baru.peran != Peran.PETUGAS && !Repo.emailSiswaValid(baru.email)) {
+                runCatching { Repo.keluar() }
+                return Repo.PESAN_EMAIL_SISWA
+            }
+            sesi = baru
             mulaiSesi()
             null
         } catch (e: Exception) {
             "Email atau kata sandi tidak cocok."
         }
     }
+
+    suspend fun daftar(nama: String, kelas: String, email: String, sandi: String): String? {
+        if (!Repo.emailSiswaValid(email)) return Repo.PESAN_EMAIL_SISWA
+        return try {
+            sesi = Repo.daftar(nama, kelas, email, sandi)
+            if (sesi == null) return "Akun dibuat, tetapi belum bisa masuk. Coba dari halaman Masuk."
+            mulaiSesi()
+            null
+        } catch (e: Exception) {
+            val m = e.message.orEmpty()
+            if (Regex("registered|exists", RegexOption.IGNORE_CASE).containsMatchIn(m)) "Email itu sudah terdaftar. Coba masuk."
+            else if (Regex("database error saving new user|EMAIL_BUKAN_SEKOLAH", RegexOption.IGNORE_CASE).containsMatchIn(m)) Repo.PESAN_EMAIL_SISWA
+            else "Pendaftaran gagal. Periksa data dan koneksi internet."
+        }
+    }
+
+    suspend fun hapus(l: Laporan): Boolean =
+        runCatching { Repo.hapusLaporan(l.id) }
+            .onSuccess { segarkan() }
+            .isSuccess
 
     fun keluar() {
         viewModelScope.launch {
@@ -150,8 +192,7 @@ class AppViewModel : ViewModel() {
         runCatching { Repo.muatSesi() }.getOrNull()?.let { sesi = it }
         segarkan()
         if (cek?.first == "asal") {
-            val n = sesi?.peringatan ?: 0
-            return Result.failure(Exception("Laporan ditolak otomatis karena asal-asalan (${cek.second}). Peringatan $n/3."))
+            return Result.failure(Exception("Laporan ditolak otomatis oleh TanggapAI: ${cek.second}"))
         }
         return Result.success(hasil.code)
     }

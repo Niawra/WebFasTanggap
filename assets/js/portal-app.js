@@ -24,7 +24,7 @@ function kartuApp(l, aksi, ekstra) {
     <div class="ap-kartu ap-lap" data-buka="${esc(l.kode)}" role="link" tabindex="0" aria-label="Buka ${esc(l.judul)}">
       <div class="ap-lap__atas">
         <span class="ap-lap__kode">${esc(l.kode)}</span><span>· ${esc(relatif(l.dibuat))}</span>
-        ${l.tersembunyi ? `<span class="ap-pil" data-s="asal">Asal-asalan</span>` : pilApp(l.status)}
+        ${pilApp(l.status)}
       </div>
       <h3>${esc(l.judul)}</h3>
       <div class="ap-lap__tempat">${PIN}<span>${esc(l.lokasi)} · ${esc(namaKategori(l.kategoriId))}</span></div>
@@ -327,8 +327,7 @@ function halamanLapor() {
     }
     const v = hasil.verifikasi;
     if (v && v.verdict === "asal") {
-      const n = (Store.sesi() && Store.sesi().peringatan) || 0;
-      toast(`Laporan ditolak otomatis karena asal-asalan (${v.alasan}). Peringatan ${n}/3.`, "galat");
+      toast(`Laporan ditolak otomatis oleh TanggapAI: ${v.alasan}`, "galat");
       location.hash = "#/laporan";
       return;
     }
@@ -431,10 +430,9 @@ function halamanPetugas() {
       ["diproses", "Diproses", hitung("diproses")],
       ["selesai", "Selesai", hitung("selesai")],
       ["ditolak", "Ditolak", hitung("ditolak")],
-      ["asal", "Asal-asalan", tersembunyi.length],
     ];
     const daftar =
-      saringPetugas === "asal" ? tersembunyi : saringPetugas === "semua" ? semua : semua.filter((l) => l.status === saringPetugas);
+      saringPetugas === "semua" ? semua : semua.filter((l) => l.status === saringPetugas);
     isi = `
       <div class="ap-chip" role="group" aria-label="Saring laporan">
         ${chip.map(([n, label, j]) => `<button type="button" data-saring="${n}" aria-pressed="${saringPetugas === n}">${label}<b>${j}</b></button>`).join("")}

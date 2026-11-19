@@ -44,6 +44,11 @@ object Repo {
 
     /* ---------- akun ---------- */
 
+    /** Siswa wajib memakai email sekolah: NIS@student.smktelkom-pwt.sch.id. Petugas dikecualikan. */
+    private val POLA_EMAIL_SISWA = Regex("^[0-9]+@student\\.smktelkom-pwt\\.sch\\.id$", RegexOption.IGNORE_CASE)
+    const val PESAN_EMAIL_SISWA = "Harus gunakan email sekolah (NIS@student.smktelkom-pwt.sch.id)."
+    fun emailSiswaValid(email: String): Boolean = POLA_EMAIL_SISWA.matches(email.trim())
+
     suspend fun muatSesi(): Sesi? {
         supabase.auth.awaitInitialization()
         val user = supabase.auth.currentUserOrNull() ?: return null
@@ -66,6 +71,27 @@ object Repo {
             this.email = email.trim()
             password = sandi
         }
+        return muatSesi()
+    }
+
+    /** Daftar akun siswa baru, lalu langsung masuk. Sama seperti di website. */
+    suspend fun daftar(nama: String, kelas: String, email: String, sandi: String): Sesi? {
+        supabase.auth.signUpWith(Email) {
+            this.email = email.trim()
+            password = sandi
+            data = buildJsonObject { put("full_name", nama.trim()) }
+        }
+        if (supabase.auth.currentSessionOrNull() == null) {
+            supabase.auth.signInWith(Email) {
+                this.email = email.trim()
+                password = sandi
+            }
+        }
+        val user = supabase.auth.currentUserOrNull() ?: return null
+        supabase.from("profiles").update({
+            set("full_name", nama.trim())
+            set("class_name", kelas.trim())
+        }) { filter { eq("id", user.id) } }
         return muatSesi()
     }
 
@@ -126,6 +152,15 @@ object Repo {
         ) { select(Columns.list("id", "code")) }.decodeSingle<HasilKode>()
     }
 
+    /** Hapus laporan milik sendiri yang belum diproses. Gagal jika database menolak (RLS). */
+    suspend fun hapusLaporan(idLaporan: String) {
+        val terhapus = supabase.from("reports").delete {
+            select()
+            filter { eq("id", idLaporan) }
+        }.decodeList<Laporan>()
+        check(terhapus.isNotEmpty()) { "Laporan tidak bisa dihapus." }
+    }
+
     suspend fun urlFoto(jalur: String): String =
         supabase.storage.from(BUCKET).createSignedUrl(jalur, 1.hours)
 
@@ -144,7 +179,7 @@ object Repo {
         }
     }
 
-    /** Petugas: sembunyikan laporan asal-asalan + beri peringatan ke pelapor (migrasi-verifikasi.sql). */
+    /** Petugas: tolak laporan asal-asalan, tanpa peringatan/blokir (migrasi-tolak-otomatis.sql). */
     suspend fun tandaiAsal(idLaporan: String, alasan: String) {
         supabase.postgrest.rpc("tandai_asal", buildJsonObject { put("p_id", idLaporan); put("p_alasan", alasan) })
     }

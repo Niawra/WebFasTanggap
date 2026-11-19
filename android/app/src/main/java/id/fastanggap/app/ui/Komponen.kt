@@ -311,7 +311,7 @@ fun JudulBesar(judul: String, sub: String? = null, modifier: Modifier = Modifier
 /** Angka yang berhitung naik saat pertama tampil. */
 @Composable
 fun AngkaBerhitung(nilai: Int, modifier: Modifier = Modifier, warna: Color = Warna.Tinta, ukuran: Dp = 34.dp) {
-    val anim = remember { Animatable(0f) }
+    val anim = awalAnimasi(nilai.toFloat()).let { v -> remember { Animatable(v) } }
     LaunchedEffect(nilai) {
         anim.animateTo(nilai.toFloat(), tween(900, easing = FastOutSlowInEasing))
     }

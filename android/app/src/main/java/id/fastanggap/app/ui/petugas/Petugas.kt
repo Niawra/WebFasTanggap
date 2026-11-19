@@ -69,6 +69,7 @@ import id.fastanggap.app.data.Laporan
 import id.fastanggap.app.data.Peran
 import id.fastanggap.app.data.Status
 import id.fastanggap.app.ui.AngkaBerhitung
+import id.fastanggap.app.ui.awalAnimasi
 import id.fastanggap.app.ui.Isian
 import id.fastanggap.app.ui.JudulBesar
 import id.fastanggap.app.ui.Kartu
@@ -268,9 +269,9 @@ fun AksiPetugas(vm: AppViewModel, l: Laporan) {
             }
         }
     }
-    // Laporan asal-asalan: sembunyikan + 1 peringatan ke pelapor. Tekan dua kali untuk memastikan.
+    // Laporan asal-asalan: langsung ditolak (tanpa peringatan/blokir). Tekan dua kali untuk memastikan.
     TombolSekunder(
-        if (yakinAsal) "Yakin? Tekan lagi untuk menyembunyikan" else "Tandai asal-asalan",
+        if (yakinAsal) "Yakin? Tekan lagi untuk menolak" else "Tandai asal-asalan",
         ikon = Icons.Rounded.Report,
         modifier = Modifier.fillMaxWidth(),
         onClick = {
@@ -279,7 +280,7 @@ fun AksiPetugas(vm: AppViewModel, l: Laporan) {
             } else {
                 lingkup.launch {
                     val ok = vm.tandaiAsal(l, catatan)
-                    vm.kabari(if (ok) "${l.kode} disembunyikan, pelapor diberi peringatan" else "Gagal menandai. Coba lagi.")
+                    vm.kabari(if (ok) "${l.kode} ditolak sebagai asal-asalan" else "Gagal menandai. Coba lagi.")
                     yakinAsal = false
                 }
             }
@@ -299,7 +300,7 @@ fun RingkasanPetugas(vm: AppViewModel) {
     val maks = (perKategori.maxOfOrNull { it.second } ?: 1).toFloat()
     val lingkup = rememberCoroutineScope()
 
-    val tumbuh = remember { Animatable(0f) }
+    val tumbuh = awalAnimasi().let { v -> remember { Animatable(v) } }
     LaunchedEffect(semua.size) {
         tumbuh.snapTo(0f)
         tumbuh.animateTo(1f, tween(1100, easing = FastOutSlowInEasing))
@@ -344,35 +345,6 @@ fun RingkasanPetugas(vm: AppViewModel) {
                             Spacer(Modifier.height(8.dp))
                             AngkaBerhitung(jumlah[s] ?: 0, ukuran = 24.dp)
                             Text(s.label, color = Warna.TintaLembut, fontSize = 11.sp, maxLines = 1)
-                        }
-                    }
-                }
-            }
-        }
-        if (vm.tersembunyi.isNotEmpty()) {
-            item {
-                Kartu(Modifier.padding(horizontal = 18.dp, vertical = 8.dp).fillMaxWidth()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Laporan asal-asalan (${vm.tersembunyi.size})", style = MaterialTheme.typography.titleMedium)
-                        Text("Disembunyikan dan pelapornya diberi peringatan. Pulihkan jika ternyata laporan asli.", color = Warna.TintaLembut, fontSize = 12.sp)
-                        vm.tersembunyi.forEach { h ->
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(h.title, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                                    Text(h.aiAlasan ?: h.alasanTolak.orEmpty(), color = Warna.TintaLembut, fontSize = 12.sp, maxLines = 2)
-                                }
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    "Pulihkan",
-                                    color = Warna.Merah,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.clip(RoundedCornerShape(50)).clickable {
-                                        lingkup.launch {
-                                            vm.kabari(if (vm.pulihkan(h)) "${h.kode} dipulihkan" else "Gagal memulihkan")
-                                        }
-                                    }.padding(horizontal = 10.dp, vertical = 6.dp),
-                                )
-                            }
                         }
                     }
                 }
