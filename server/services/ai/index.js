@@ -40,11 +40,48 @@ export class AIServiceError extends Error {
  * @returns {string}
  */
 export function getActiveAiProvider() {
-  const envProvider = process.env.AI_PROVIDER;
-  if (!envProvider || typeof envProvider !== "string" || !envProvider.trim()) {
-    return DEFAULT_AI_PROVIDER;
+  return getAiProviderChain()[0];
+}
+
+/**
+ * Urutan provider dari AI_PROVIDER, dipisah koma. Contoh "openai,groq":
+ * coba openai dulu, kalau gagal (mati/timeout/limit) baru groq.
+ * @returns {string[]}
+ */
+export function getAiProviderChain() {
+  const daftar = String(process.env.AI_PROVIDER || "")
+    .split(",")
+    .map((p) => p.trim().toLowerCase())
+    .filter(Boolean);
+  return daftar.length ? daftar : [DEFAULT_AI_PROVIDER];
+}
+
+/** Galat yang layak dicoba ulang ke provider berikutnya (bukan salah input pengguna). */
+function bolehPindahProvider(err) {
+  const status = Number(err?.statusCode || err?.status || 0);
+  return !status || status >= 500 || status === 429 || status === 408 || status === 401 || status === 403;
+}
+
+/**
+ * Menjalankan fungsi per provider sesuai urutan, pindah ke berikutnya bila gagal.
+ * @template T
+ * @param {(provider: string) => Promise<T>} kerja
+ * @param {string[]} [urutan]
+ * @returns {Promise<T>}
+ */
+export async function denganCadangan(kerja, urutan = getAiProviderChain()) {
+  let galatTerakhir;
+  for (let i = 0; i < urutan.length; i++) {
+    try {
+      return await kerja(urutan[i]);
+    } catch (err) {
+      galatTerakhir = err;
+      const adaLagi = i < urutan.length - 1;
+      if (!adaLagi || !bolehPindahProvider(err)) throw err;
+      console.warn(`[TanggapAI] Provider '${urutan[i]}' gagal (${err?.code || err?.message}). Beralih ke '${urutan[i + 1]}'.`);
+    }
   }
-  return envProvider.trim().toLowerCase();
+  throw galatTerakhir;
 }
 
 /**
@@ -74,7 +111,14 @@ export async function kirimPesanAI({
   provider,
   ekstra = "",
 } = {}) {
-  const providerAktif = (provider || getActiveAiProvider()).toLowerCase().trim();
+  const urutan = provider ? [String(provider).toLowerCase().trim()] : getAiProviderChain();
+  return denganCadangan(
+    (p) => kirimKeSatuProvider({ message, history, role, userName, client, model, ekstra, providerAktif: p }),
+    urutan
+  );
+}
+
+async function kirimKeSatuProvider({ message, history, role, userName, client, model, ekstra, providerAktif }) {
 
   // Validasi apakah provider didukung pada sistem
   if (!SUPPORTED_AI_PROVIDERS.includes(providerAktif)) {

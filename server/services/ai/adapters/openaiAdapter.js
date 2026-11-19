@@ -146,8 +146,8 @@ export function getOpenAiClient() {
     ...(process.env.OPENAI_BASE_URL && process.env.OPENAI_BASE_URL.trim()
       ? { baseURL: process.env.OPENAI_BASE_URL.trim() }
       : {}),
-    timeout: REQUEST_TIMEOUT_MS,
-    maxRetries: 1, // Dibatasi 1 kali agar total waktu tunggu tidak menumpuk melebihi toleransi frontend
+    timeout: (Number(process.env.AI_TIMEOUT_MS) || REQUEST_TIMEOUT_MS),
+    maxRetries: process.env.AI_TIMEOUT_MS ? 0 : 1, // Dibatasi 1 kali agar total waktu tunggu tidak menumpuk melebihi toleransi frontend
   });
 }
 
@@ -301,7 +301,7 @@ export async function kirimPesanOpenAi({
 
   // 9. Eksekusi Permintaan ke OpenAI dengan Pengendali Abort Terpadu (Hard Timeout 25 Detik)
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), Number(process.env.AI_TIMEOUT_MS) || REQUEST_TIMEOUT_MS);
 
   try {
     const hasil = await ai.chat.completions.create(

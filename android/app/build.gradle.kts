@@ -29,7 +29,7 @@ android {
         )
 
         // Alamat backend TanggapAI (folder server/). Ganti setiap link tunnel Cloudflare berubah.
-        buildConfigField("String", "TANGGAPAI_URL", "\"https://african-neighbors-host-let.trycloudflare.com/api/chat\"")
+        buildConfigField("String", "TANGGAPAI_URL", "\"https://fastanggap.vercel.app/api/chat\"")
     }
 
     buildTypes {
