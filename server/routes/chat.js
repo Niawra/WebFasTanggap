@@ -183,6 +183,7 @@ router.post("/chat", authMiddleware, chatRateLimiter, async (req, res) => {
       success: true,
       reply: teks,
       draft: draf,
+      model: hasil.model || null,
       error: null,
     });
   } catch (error) {
