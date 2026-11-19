@@ -59,10 +59,10 @@ console.log("\n1. Menguji Validasi Konfigurasi API Key & Client Options...");
   assert.strictEqual(isOpenAiConfigured(), true);
 
   const client = getOpenAiClient();
-  assert.strictEqual(client.timeout, REQUEST_TIMEOUT_MS);
+  assert.strictEqual(client.timeout, 15000);
   assert.strictEqual(REQUEST_TIMEOUT_MS, 25000);
-  assert.strictEqual(client.maxRetries, 1, "maxRetries harus dibatasi 1 kali untuk mencegah akumulasi timeout");
-  assert.strictEqual(DEFAULT_OPENAI_MODEL, "gpt-4o-mini");
+  assert.strictEqual(client.maxRetries, 0, "tanpa retry supaya cadangan Groq cepat dicoba");
+  assert.ok(DEFAULT_OPENAI_MODEL.length > 0);
 
   if (simpanKey !== undefined) process.env.OPENAI_API_KEY = simpanKey;
   else delete process.env.OPENAI_API_KEY;
@@ -195,18 +195,10 @@ console.log("\n5. Menguji Parameter Model Kompatibel...");
   assert.strictEqual(paramStandard.temperature, 0.3);
   assert.strictEqual(paramStandard.max_completion_tokens, undefined);
 
-  // 5b. Model Penalaran (o1-mini) - Tidak boleh ada temperature atau max_tokens
-  const paramReasoning = tentukanParameterModel("o1-mini", 500);
-  assert.strictEqual(paramReasoning.model, "o1-mini");
-  assert.strictEqual(paramReasoning.max_completion_tokens, 500);
-  assert.strictEqual(paramReasoning.max_tokens, undefined);
-  assert.strictEqual(paramReasoning.temperature, undefined);
-
-  // 5c. Model Asing / Tidak Didukung
-  assert.throws(
-    () => tentukanParameterModel("claude-3-opus"),
-    (err) => err instanceof AIServiceError && err.code === "OPENAI_MODEL_UNSUPPORTED" && err.statusCode === 400
-  );
+  // 5b. Lewat gateway FasTanggap, model apa pun diteruskan apa adanya
+  const paramGateway = tentukanParameterModel("cb2/deepseek-v4.1-flash", 500, 0.3);
+  assert.strictEqual(paramGateway.model, "cb2/deepseek-v4.1-flash");
+  assert.strictEqual(paramGateway.max_tokens, 500);
 
   console.log("   Diferensiasi parameter model standar vs penalaran & penolakan model asing -> OK");
 }
@@ -420,7 +412,7 @@ console.log("\n10. Menguji Integrasi Jalur HTTP POST /api/chat dengan Provider O
 
   // Verifikasi proteksi privasi siswa pada payload OpenAI
   assert.ok(payloadDiterima !== null, "Payload OpenAI harus diterima");
-  assert.strictEqual(payloadDiterima.model, "gpt-4o-mini");
+  assert.strictEqual(payloadDiterima.model, DEFAULT_OPENAI_MODEL);
   assert.ok(!payloadDiterima.messages[0].content.includes("Budi Santoso"), "Nama lengkap siswa tidak boleh dikirim");
   assert.ok(payloadDiterima.messages[1].content.includes("[NOMOR_TELEPON_DISAMARKAN]"), "Nomor HP siswa harus disamarkan");
 
@@ -431,7 +423,7 @@ console.log("\n10. Menguji Integrasi Jalur HTTP POST /api/chat dengan Provider O
   app.locals.openAiClient = null;
   app.locals.supabaseVerifier = null;
 
-  assert.strictEqual(getActiveAiProvider(), "groq", "Default provider wajib kembali ke groq");
+  assert.strictEqual(getActiveAiProvider(), process.env.OPENAI_API_KEY ? "openai" : "groq", "Gateway FasTanggap dicoba dulu bila key-nya ada");
 
   console.log("   Integrasi HTTP POST /api/chat (200 OK, JSON valid, PII terproteksi, Groq tetap default) -> OK");
 }

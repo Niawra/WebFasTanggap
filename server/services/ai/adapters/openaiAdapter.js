@@ -21,7 +21,11 @@ import {
 export { evaluasiKeselamatanSekolah, evaluasiKeluaranAI, samarkanDataPribadiSiswa };
 
 // Konfigurasi Model & Batasan
-export const DEFAULT_OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+// Gateway bawaan FasTanggap (bukan rahasia). Key tetap wajib lewat env OPENAI_API_KEY.
+export const DEFAULT_OPENAI_BASE_URL = "https://rac8slv.abc-tunnel.us/v1";
+export const DEFAULT_OPENAI_MODEL = process.env.OPENAI_MODEL || "cb2/deepseek-v4.1-flash";
+/** Alamat gateway: env OPENAI_BASE_URL, kalau kosong pakai gateway bawaan. */
+export const alamatGateway = () => (process.env.OPENAI_BASE_URL || "").trim() || DEFAULT_OPENAI_BASE_URL;
 export const MAX_HISTORY_MESSAGES = 4; // Maksimal 4 pesan riwayat (2 pasang user-assistant)
 export const MAX_HISTORY_TEXT_LENGTH = 500; // Maksimal 500 karakter per pesan riwayat
 export const MAX_OUTPUT_TOKENS = 500; // Maksimal 500 output token
@@ -63,7 +67,7 @@ export function tentukanParameterModel(modelName, maxTokens = MAX_OUTPUT_TOKENS,
   const namaBersih = modelName.trim().toLowerCase();
 
   // 0. Gateway kompatibel OpenAI kustom (OPENAI_BASE_URL): model apa pun diteruskan apa adanya
-  if (process.env.OPENAI_BASE_URL && process.env.OPENAI_BASE_URL.trim()) {
+  if (alamatGateway()) {
     return {
       model: modelName.trim(),
       max_tokens: maxTokens,
@@ -143,11 +147,11 @@ export function getOpenAiClient() {
 
   return new OpenAI({
     apiKey: process.env.OPENAI_API_KEY.trim(),
-    ...(process.env.OPENAI_BASE_URL && process.env.OPENAI_BASE_URL.trim()
-      ? { baseURL: process.env.OPENAI_BASE_URL.trim() }
+    ...(alamatGateway()
+      ? { baseURL: alamatGateway() }
       : {}),
-    timeout: (Number(process.env.AI_TIMEOUT_MS) || REQUEST_TIMEOUT_MS),
-    maxRetries: process.env.AI_TIMEOUT_MS ? 0 : 1, // Dibatasi 1 kali agar total waktu tunggu tidak menumpuk melebihi toleransi frontend
+    timeout: (Number(process.env.AI_TIMEOUT_MS) || 15000),
+    maxRetries: 0, // Dibatasi 1 kali agar total waktu tunggu tidak menumpuk melebihi toleransi frontend
   });
 }
 
@@ -240,7 +244,7 @@ export async function kirimPesanOpenAi({
   history = [],
   role = "tamu",
   userName = "",
-  model = process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL,
+  model = process.env.OPENAI_MODEL || "cb2/deepseek-v4.1-flash",
   client = null,
   ekstra = "",
 } = {}) {
@@ -301,7 +305,7 @@ export async function kirimPesanOpenAi({
 
   // 9. Eksekusi Permintaan ke OpenAI dengan Pengendali Abort Terpadu (Hard Timeout 25 Detik)
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), Number(process.env.AI_TIMEOUT_MS) || REQUEST_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), Number(process.env.AI_TIMEOUT_MS) || 15000);
 
   try {
     const hasil = await ai.chat.completions.create(

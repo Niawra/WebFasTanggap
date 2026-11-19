@@ -396,7 +396,7 @@ console.log("\n10. Menguji Integrasi Jalur HTTP POST /api/chat dengan Provider G
   app.locals.groqClient = null;
   app.locals.supabaseVerifier = null;
 
-  assert.strictEqual(getActiveAiProvider(), "groq", "Groq wajib menjadi default provider");
+  assert.strictEqual(getActiveAiProvider(), process.env.OPENAI_API_KEY ? "openai" : "groq", "Groq wajib menjadi default provider");
 
   console.log("   Integrasi HTTP POST /api/chat (200 OK, JSON valid, PII terproteksi, Groq default) -> OK");
 }

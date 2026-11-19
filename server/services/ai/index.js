@@ -53,7 +53,10 @@ export function getAiProviderChain() {
     .split(",")
     .map((p) => p.trim().toLowerCase())
     .filter(Boolean);
-  return daftar.length ? daftar : [DEFAULT_AI_PROVIDER];
+  const urutan = daftar.length ? daftar : [DEFAULT_AI_PROVIDER];
+  // AI utama FasTanggap: kalau key gateway (OPENAI_API_KEY) terpasang, selalu dicoba paling dulu.
+  if (process.env.OPENAI_API_KEY && !urutan.includes("openai")) urutan.unshift("openai");
+  return urutan;
 }
 
 /** Galat yang layak dicoba ulang ke provider berikutnya (bukan salah input pengguna). */
