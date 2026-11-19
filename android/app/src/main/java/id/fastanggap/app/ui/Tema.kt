@@ -65,3 +65,8 @@ fun TemaFasTanggap(isi: @Composable () -> Unit) {
         content = isi,
     )
 }
+
+/** Nilai awal animasi masuk. Di @Preview langsung ke nilai akhir, karena animasi tidak berjalan di preview statis. */
+@Composable
+fun awalAnimasi(akhir: Float = 1f): Float =
+    if (androidx.compose.ui.platform.LocalInspectionMode.current) akhir else 0f

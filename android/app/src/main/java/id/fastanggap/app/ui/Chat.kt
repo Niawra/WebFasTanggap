@@ -67,7 +67,15 @@ fun KartuChat(vm: AppViewModel, l: Laporan, modifier: Modifier = Modifier) {
         if (kurang.isNotEmpty()) runCatching { profil.putAll(Repo.namaPengguna(kurang)) }
     }
 
+    val pratinjau = androidx.compose.ui.platform.LocalInspectionMode.current
     LaunchedEffect(l.id) {
+        if (pratinjau) {
+            // Mode @Preview: pakai data contoh, jangan sentuh Supabase.
+            profil.putAll(id.fastanggap.app.data.ContohData.profil)
+            pesan.addAll(id.fastanggap.app.data.ContohData.pesan.filter { it.reportId == l.id })
+            memuat = false
+            return@LaunchedEffect
+        }
         val awal = runCatching { Repo.muatChat(l.id) }.getOrDefault(emptyList())
         lengkapiNama(awal.map { it.senderId }.toSet())
         pesan.clear()
@@ -167,6 +175,18 @@ private fun Gelembung(p: Pesan, milikku: Boolean, profil: Profil?) {
             Text(nama, color = warna.copy(alpha = 0.8f), fontSize = 11.sp)
             Text(p.body, color = warna, fontSize = 15.sp)
             Text(sejak(p.createdAt), color = warna.copy(alpha = 0.6f), fontSize = 10.sp, modifier = Modifier.align(Alignment.End))
+        }
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(name = "Gelembung chat", showBackground = true)
+@Composable
+private fun PreviewGelembung() {
+    TemaFasTanggap {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            val saya = id.fastanggap.app.data.ContohData.siswa.id
+            Gelembung(id.fastanggap.app.data.ContohData.pesan[0], milikku = saya == id.fastanggap.app.data.ContohData.pesan[0].senderId, profil = id.fastanggap.app.data.ContohData.profil[saya])
+            Gelembung(id.fastanggap.app.data.ContohData.pesan[1], milikku = false, profil = id.fastanggap.app.data.ContohData.profil[id.fastanggap.app.data.ContohData.petugas.id])
         }
     }
 }

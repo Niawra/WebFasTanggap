@@ -11,6 +11,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,12 +35,16 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.School
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Mail
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -64,7 +69,7 @@ import id.fastanggap.app.AppViewModel
 import kotlinx.coroutines.launch
 
 @Composable
-fun MasukLayar(vm: AppViewModel) {
+fun MasukLayar(vm: AppViewModel, keDaftar: () -> Unit = {}) {
     var email by remember { mutableStateOf("") }
     var sandi by remember { mutableStateOf("") }
     var galat by remember { mutableStateOf<String?>(null) }
@@ -72,8 +77,8 @@ fun MasukLayar(vm: AppViewModel) {
     val lingkup = rememberCoroutineScope()
 
     // Masuk bertahap: blok merah turun, lalu kartu naik.
-    val turun = remember { Animatable(0f) }
-    val naik = remember { Animatable(0f) }
+    val turun = awalAnimasi().let { v -> remember { Animatable(v) } }
+    val naik = awalAnimasi().let { v -> remember { Animatable(v) } }
     LaunchedEffect(Unit) {
         turun.animateTo(1f, pegas())
     }
@@ -115,7 +120,11 @@ fun MasukLayar(vm: AppViewModel) {
                     Modifier.size(54.dp).clip(CircleShape).background(Color.White),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("FT", color = Warna.Merah, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(id.fastanggap.app.R.drawable.logo_fastanggap),
+                        contentDescription = null,
+                        modifier = Modifier.size(40.dp),
+                    )
                 }
                 Spacer(Modifier.height(36.dp))
                 Text(
@@ -150,7 +159,7 @@ fun MasukLayar(vm: AppViewModel) {
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Spacer(Modifier.height(2.dp))
-                    Isian(email, { email = it; galat = null }, "Email sekolah", Icons.Rounded.Mail, KeyboardType.Email)
+                    Isian(email, { email = it; galat = null }, "NIS@student.smktelkom-pwt.sch.id", Icons.Rounded.Mail, KeyboardType.Email)
                     Isian(sandi, { sandi = it; galat = null }, "Kata sandi", Icons.Rounded.Lock, KeyboardType.Password, rahasia = true)
                     AnimatedVisibility(galat != null, enter = expandVertically() + fadeIn()) {
                         Text(galat.orEmpty(), color = Warna.Merah, style = MaterialTheme.typography.bodyMedium)
@@ -168,6 +177,7 @@ fun MasukLayar(vm: AppViewModel) {
                         aktif = email.contains("@") && sandi.length >= 6,
                         sibuk = sibuk,
                     )
+                    TautanBawah("Belum punya akun? ", "Daftar", keDaftar)
                 }
             }
             Spacer(Modifier.height(18.dp))
@@ -183,6 +193,117 @@ fun MasukLayar(vm: AppViewModel) {
                     ) { Icon(Icons.Rounded.Check, null, tint = Warna.Merah, modifier = Modifier.size(14.dp)) }
                     Spacer(Modifier.width(10.dp))
                     Text(it, color = Warna.TintaLembut, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+            Spacer(Modifier.navigationBarsPadding().height(24.dp))
+        }
+    }
+}
+
+/** Teks "Belum punya akun? Daftar" yang bisa diketuk. */
+@Composable
+private fun TautanBawah(teks: String, tautan: String, ketuk: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(top = 4.dp),
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Text(teks, color = Warna.TintaLembut, style = MaterialTheme.typography.bodyMedium)
+        Text(
+            tautan,
+            color = Warna.Merah,
+            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.clickable(onClick = ketuk),
+        )
+    }
+}
+
+/** Layar daftar akun siswa baru. */
+@Composable
+fun DaftarLayar(vm: AppViewModel, keMasuk: () -> Unit = {}) {
+    var nama by remember { mutableStateOf("") }
+    var kelas by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var sandi by remember { mutableStateOf("") }
+    var ulang by remember { mutableStateOf("") }
+    var galat by remember { mutableStateOf<String?>(null) }
+    var sibuk by remember { mutableStateOf(false) }
+    val lingkup = rememberCoroutineScope()
+    val cocok = sandi == ulang
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(Warna.Latar)
+            .verticalScroll(rememberScrollState())
+            .imePadding(),
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(bottomStart = 40.dp, bottomEnd = 40.dp))
+                .background(Warna.Merah)
+                .statusBarsPadding()
+                .padding(horizontal = 26.dp)
+                .padding(top = 16.dp, bottom = 60.dp),
+        ) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 40.dp, y = (-10).dp)
+                    .size(150.dp)
+                    .border(24.dp, Color.White.copy(alpha = 0.12f), CircleShape),
+            )
+            Column {
+                Box(
+                    Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.18f)).clickable(onClick = keMasuk),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Kembali", tint = Color.White) }
+                Spacer(Modifier.height(28.dp))
+                Text(
+                    "Buat akun\nFasTanggap",
+                    color = Color.White,
+                    fontSize = 30.sp,
+                    lineHeight = 35.sp,
+                    softWrap = false,
+                    modifier = Modifier.fillMaxWidth(),
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.8).sp,
+                )
+                Spacer(Modifier.height(10.dp))
+                Text("Khusus siswa SMK Telkom Purwokerto · email @student.smktelkom-pwt.sch.id", color = Color.White.copy(alpha = 0.78f), fontSize = 14.sp)
+            }
+        }
+
+        Column(Modifier.offset(y = (-34).dp).padding(horizontal = 18.dp)) {
+            Kartu(padding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Daftar", style = MaterialTheme.typography.headlineSmall)
+                    Isian(nama, { nama = it; galat = null }, "Nama lengkap", Icons.Rounded.Person)
+                    Isian(kelas, { kelas = it; galat = null }, "Kelas (mis. XI PPLG 4)", Icons.Rounded.School)
+                    Isian(email, { email = it; galat = null }, "NIS@student.smktelkom-pwt.sch.id", Icons.Rounded.Mail, KeyboardType.Email)
+                    Isian(sandi, { sandi = it; galat = null }, "Kata sandi (min. 6 karakter)", Icons.Rounded.Lock, KeyboardType.Password, rahasia = true)
+                    Isian(ulang, { ulang = it; galat = null }, "Ulangi kata sandi", Icons.Rounded.Lock, KeyboardType.Password, rahasia = true)
+                    val pesan = galat
+                        ?: if (email.contains("@") && !id.fastanggap.app.data.Repo.emailSiswaValid(email)) id.fastanggap.app.data.Repo.PESAN_EMAIL_SISWA
+                        else if (ulang.isNotEmpty() && !cocok) "Kata sandi belum sama." else null
+                    AnimatedVisibility(pesan != null, enter = expandVertically() + fadeIn()) {
+                        Text(pesan.orEmpty(), color = Warna.Merah, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    TombolUtama(
+                        "Daftar",
+                        onClick = {
+                            sibuk = true
+                            lingkup.launch {
+                                galat = vm.daftar(nama, kelas, email, sandi)
+                                sibuk = false
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        aktif = nama.isNotBlank() && kelas.isNotBlank() && email.contains("@") && sandi.length >= 6 && cocok,
+                        sibuk = sibuk,
+                    )
+                    TautanBawah("Sudah punya akun? ", "Masuk", keMasuk)
                 }
             }
             Spacer(Modifier.navigationBarsPadding().height(24.dp))
@@ -227,6 +348,19 @@ fun Isian(
                 visualTransformation = if (rahasia) PasswordVisualTransformation() else VisualTransformation.None,
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+// Changed from 'private fun' to package-private/public 'fun' so Compose Tooling reflection can invoke the preview composable.
+fun IsianPreview() {
+    TemaFasTanggap {
+        Column(Modifier.padding(16.dp)) {
+            Isian(nilai = "", ubah = {}, petunjuk = "Email")
+            Spacer(Modifier.height(12.dp))
+            Isian(nilai = "contoh", ubah = {}, petunjuk = "Sandi", rahasia = true)
         }
     }
 }

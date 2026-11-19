@@ -94,8 +94,9 @@
   width: 42px;
   height: 42px;
   border-radius: 10px;
-  background: var(--merah);
-  color: #fff;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(29, 24, 23, 0.08);
+  color: var(--merah);
   display: grid;
   place-items: center;
   font-family: var(--font-judul);
@@ -104,6 +105,12 @@
   letter-spacing: 0.02em;
   flex: none;
   transition: transform 0.4s var(--pegas);
+}
+.merek__logo img {
+  width: 78%;
+  height: 78%;
+  object-fit: contain;
+  display: block;
 }
 .merek:hover .merek__logo {
   transform: rotate(-6deg) scale(1.05);

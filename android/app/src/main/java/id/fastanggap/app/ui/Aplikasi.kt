@@ -82,7 +82,12 @@ fun Aplikasi(vm: AppViewModel) {
                 0 -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = Warna.Merah)
                 }
-                1 -> MasukLayar(vm)
+                1 -> {
+                    var daftar by rememberSaveable { mutableStateOf(false) }
+                    BackHandler(enabled = daftar) { daftar = false }
+                    if (daftar) DaftarLayar(vm, keMasuk = { daftar = false })
+                    else MasukLayar(vm, keDaftar = { daftar = true })
+                }
                 else -> Rangka(vm)
             }
         }

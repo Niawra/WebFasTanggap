@@ -31,6 +31,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Inbox
 import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.AddCircle
@@ -67,6 +68,7 @@ import id.fastanggap.app.ui.Kartu
 import id.fastanggap.app.ui.Kosong
 import id.fastanggap.app.ui.PilStatus
 import id.fastanggap.app.ui.TombolUtama
+import id.fastanggap.app.ui.TombolSekunder
 import id.fastanggap.app.ui.Warna
 import id.fastanggap.app.ui.sejak
 import id.fastanggap.app.ui.tanggal
@@ -220,7 +222,9 @@ fun DetailLaporan(vm: AppViewModel, l: Laporan, tutup: () -> Unit, aksi: @Compos
     val konteks = LocalContext.current
     val lingkup = rememberCoroutineScope()
     var foto by remember(l.photoPath) { mutableStateOf<String?>(null) }
+    val pratinjau = androidx.compose.ui.platform.LocalInspectionMode.current
     LaunchedEffect(l.photoPath) {
+        if (pratinjau) return@LaunchedEffect
         foto = l.photoPath?.let { runCatching { Repo.urlFoto(it) }.getOrNull() }
     }
     val status = Status.dari(l.status)
@@ -279,6 +283,37 @@ fun DetailLaporan(vm: AppViewModel, l: Laporan, tutup: () -> Unit, aksi: @Compos
         Spacer(Modifier.height(18.dp))
         Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             aksi?.invoke()
+            if (milikSaya && status == Status.MENUNGGU && l.assignedTo == null) {
+                var tanya by remember(l.id) { mutableStateOf(false) }
+                var sibuk by remember(l.id) { mutableStateOf(false) }
+                TombolSekunder(
+                    "Hapus laporan",
+                    onClick = { tanya = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    ikon = Icons.Rounded.Delete,
+                )
+                if (tanya) {
+                    DialogHapus(
+                        kode = l.kode,
+                        sibuk = sibuk,
+                        batal = { tanya = false },
+                        hapus = {
+                            sibuk = true
+                            lingkup.launch {
+                                val ok = vm.hapus(l)
+                                sibuk = false
+                                tanya = false
+                                if (ok) {
+                                    vm.kabari("Laporan ${l.kode} dihapus")
+                                    tutup()
+                                } else {
+                                    vm.kabari("Laporan gagal dihapus")
+                                }
+                            }
+                        },
+                    )
+                }
+            }
             if (milikSaya && l.assignedTo != null && status != Status.SELESAI) {
                 TombolUtama(
                     "Chat petugas di WhatsApp",
@@ -301,6 +336,27 @@ fun DetailLaporan(vm: AppViewModel, l: Laporan, tutup: () -> Unit, aksi: @Compos
         }
         Spacer(Modifier.navigationBarsPadding().height(30.dp))
     }
+}
+
+/** Dialog konfirmasi sebelum laporan dihapus. */
+@Composable
+fun DialogHapus(kode: String, sibuk: Boolean, batal: () -> Unit, hapus: () -> Unit) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = { if (!sibuk) batal() },
+        icon = { Icon(Icons.Rounded.Delete, null, tint = Warna.Merah) },
+        title = { Text("Hapus laporan?") },
+        text = { Text("Laporan $kode akan dihapus permanen dan tidak bisa dikembalikan.", color = Warna.TintaLembut) },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = hapus, enabled = !sibuk) {
+                Text(if (sibuk) "Menghapus…" else "Hapus", color = Warna.Merah, fontWeight = FontWeight.SemiBold)
+            }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = batal, enabled = !sibuk) { Text("Batal", color = Warna.Tinta) }
+        },
+        containerColor = Warna.Kartu,
+        shape = RoundedCornerShape(28.dp),
+    )
 }
 
 /** Garis waktu sederhana: dikirim → diambil petugas → status sekarang. */
@@ -339,29 +395,7 @@ private fun Garis(l: Laporan, vm: AppViewModel) {
     }
 }
 
-/** Peringatan laporan asal-asalan. 3 peringatan = tidak bisa membuat laporan baru. */
+/** Fitur peringatan dihapus: laporan asal-asalan cukup ditolak otomatis. */
 @Composable
-fun BannerPeringatan(jumlah: Int) {
-    if (jumlah <= 0) return
-    val blokir = jumlah >= 3
-    Column(
-        Modifier
-            .padding(horizontal = 18.dp, vertical = 6.dp)
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(Warna.MerahLembut)
-            .padding(14.dp),
-    ) {
-        Text(
-            if (blokir) "Akunmu diblokir dari membuat laporan" else "Peringatan $jumlah/3",
-            color = Warna.MerahTua,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            if (blokir) "Kamu sudah 3 kali mengirim laporan asal-asalan. Hubungi petugas sarana untuk membuka blokir."
-            else "Ada laporanmu yang ditandai asal-asalan. Setelah 3 peringatan, akunmu tidak bisa membuat laporan baru.",
-            color = Warna.MerahTua,
-            fontSize = 13.sp,
-        )
-    }
-}
+@Suppress("UNUSED_PARAMETER")
+fun BannerPeringatan(jumlah: Int) {}

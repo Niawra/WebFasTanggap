@@ -840,7 +840,7 @@ function halamanDaftar() {
     <section class="auth">
       <div class="auth__kartu">
         <aside class="auth__sisi">
-          <div class="auth__logo"><span>FT</span>FasTanggap</div>
+          <div class="auth__logo"><span><img src="figure/logo.png" alt="" /></span>FasTanggap</div>
           <h2>Buat akun siswa dalam satu menit.</h2>
           <p>Dengan akun, semua laporanmu tersimpan di satu tempat dan petugas bisa menghubungimu bila perlu.</p>
           <ul class="auth__poin">
@@ -868,7 +868,7 @@ function halamanDaftar() {
           </div>
           <div class="medan">
             <label for="dPengguna">Email</label>
-            <input type="email" id="dPengguna" autocomplete="email" maxlength="80" placeholder="nama@sekolah.sch.id" />
+            <input type="email" id="dPengguna" autocomplete="email" maxlength="80" placeholder="NIS@student.smktelkom-pwt.sch.id" />
             <p class="medan__galat" id="gPengguna" role="alert"></p>
           </div>
           <div class="medan__baris">
@@ -904,7 +904,7 @@ function halamanDaftar() {
     const galat = {};
     if (nilai("#dNama").trim().length < 3) galat.gNama = "Nama minimal 3 karakter.";
     if (!nilai("#dKelas").trim()) galat.gKelas = "Kelas belum diisi.";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nilai("#dPengguna").trim())) galat.gPengguna = "Format email belum benar.";
+    if (!Store.emailSiswaValid(nilai("#dPengguna"))) galat.gPengguna = "Harus gunakan email sekolah (NIS@student.smktelkom-pwt.sch.id).";
     if (nilai("#dSandi").length < 6) galat.gSandi = "Kata sandi minimal 6 karakter.";
     if (nilai("#dUlang") !== nilai("#dSandi")) galat.gUlang = "Kata sandi tidak sama.";
 
@@ -1023,7 +1023,7 @@ function halamanMasuk() {
     <section class="auth">
       <div class="auth__kartu">
         <aside class="auth__sisi">
-          <div class="auth__logo"><span>FT</span>FasTanggap</div>
+          <div class="auth__logo"><span><img src="figure/logo.png" alt="" /></span>FasTanggap</div>
           <h2>Fasilitas rusak? Laporkan, pantau, beres.</h2>
           <p>Laporan dari siswa langsung diterima petugas sarana dan bisa dipantau sampai selesai.</p>
           <ul class="auth__poin">
@@ -1039,7 +1039,7 @@ function halamanMasuk() {
           </div>
           <div class="medan">
             <label for="namaPengguna">Email</label>
-            <input type="email" id="namaPengguna" name="namaPengguna" autocomplete="email" placeholder="nama@sekolah.sch.id" />
+            <input type="email" id="namaPengguna" name="namaPengguna" autocomplete="email" placeholder="NIS@student.smktelkom-pwt.sch.id" />
             <p class="medan__galat" id="galatNama" role="alert"></p>
           </div>
           <div class="medan">
@@ -1305,8 +1305,7 @@ function halamanLapor() {
       }
       const v = hasil.verifikasi;
       if (v && v.verdict === "asal") {
-        const n = (Store.sesi() && Store.sesi().peringatan) || 0;
-        toast(`Laporan ditolak otomatis karena asal-asalan (${v.alasan}). Akunmu mendapat peringatan ${n}/3.`, "galat");
+        toast(`Laporan ditolak otomatis oleh TanggapAI: ${v.alasan}`, "galat");
         location.hash = "#/laporan";
         return;
       }
@@ -1341,18 +1340,8 @@ function perkecilGambar(berkas) {
 
 /* ---------- Peringatan laporan asal-asalan ------------------------------ */
 
-function bannerPeringatan(sesi) {
-  const n = (sesi && sesi.peringatan) || 0;
-  if (!n) return "";
-  const blokir = n >= 3;
-  return `<div class="peringatan-akun" role="alert" style="margin:0 0 20px;padding:14px 18px;border-radius:14px;background:#fce9e7;color:#8a1c22;border:1px solid #f3c4bf">
-      <b>${blokir ? "Akunmu diblokir dari membuat laporan" : `Peringatan ${n}/3`}</b>
-      <div style="margin-top:4px;font-size:14px">${
-        blokir
-          ? "Kamu sudah 3 kali mengirim laporan asal-asalan. Hubungi petugas sarana untuk membuka blokir."
-          : "Ada laporanmu yang ditandai asal-asalan dan disembunyikan. Setelah 3 peringatan, akunmu tidak bisa membuat laporan baru."
-      }</div>
-    </div>`;
+function bannerPeringatan() {
+  return ""; // Fitur peringatan dihapus: laporan asal-asalan cukup ditolak.
 }
 
 /* ---------- Halaman: laporan saya --------------------------------------- */
@@ -1636,7 +1625,7 @@ function bukaTindakan(kode) {
             : ""
         }
         <div class="sheet__aksi" style="flex-wrap:wrap">
-          <button class="tombol tombol--garis" type="button" id="tandaiAsal" title="Sembunyikan laporan dan beri peringatan ke pelapor">Tandai asal-asalan</button>
+          <button class="tombol tombol--garis" type="button" id="tandaiAsal" title="Tolak laporan karena asal-asalan">Tandai asal-asalan</button>
           <button class="tombol tombol--garis" type="button" id="batalTindakan">Batal</button>
           <button class="tombol tombol--utama" type="submit">Simpan perubahan</button>
         </div>
@@ -1653,14 +1642,14 @@ function bukaTindakan(kode) {
   dialog.querySelector("#batalTindakan").addEventListener("click", tutup);
   dialog.querySelector("#tandaiAsal").addEventListener("click", async () => {
     const alasan = dialog.querySelector("#catatanBaru").value.trim() || "Isi laporan tidak jelas atau tidak sesuai.";
-    if (!confirm("Sembunyikan laporan ini dan beri 1 peringatan ke pelapor? (Bisa dipulihkan dari saringan Asal-asalan.)")) return;
+    if (!confirm("Tolak laporan ini karena asal-asalan?")) return;
     const hasil = await Store.tandaiAsal(kode, alasan);
     if (!hasil.ok) {
       toast(hasil.pesan, "galat");
       return;
     }
     tutup();
-    toast("Laporan disembunyikan dan pelapor mendapat peringatan.");
+    toast("Laporan ditolak sebagai asal-asalan.");
     gambarRute();
   });
   dialog.addEventListener("cancel", (e) => {
@@ -1736,14 +1725,11 @@ function halamanPetugas() {
     ["diproses", "Diproses", r.diproses],
     ["selesai", "Selesai", r.selesai],
     ["ditolak", "Ditolak", r.ditolak],
-    ["asal", "Asal-asalan", Store.laporanTersembunyi().length],
   ];
   const tampil =
     saringAktif === "semua"
       ? semua
-      : saringAktif === "asal"
-        ? Store.laporanTersembunyi()
-        : semua.filter((l) => l.status === saringAktif);
+      : semua.filter((l) => l.status === saringAktif);
 
   akar.innerHTML = `
     <section class="halaman">

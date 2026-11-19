@@ -572,7 +572,7 @@
       balasan = `Laporan gagal dikirim: ${hasil.pesan}`;
     } else if (hasil.verifikasi && hasil.verifikasi.verdict === "asal") {
       msg.terkirim = "Ditolak otomatis";
-      balasan = `Laporan ditolak otomatis karena dinilai asal-asalan (${hasil.verifikasi.alasan}). Akunmu mendapat peringatan.`;
+      balasan = `Laporan ditolak otomatis: ${hasil.verifikasi.alasan}. Coba tulis ulang dengan jelas apa yang rusak dan di mana.`;
     } else {
       msg.terkirim = `Terkirim · ${hasil.laporan.kode}`;
       balasan = `Laporan **${hasil.laporan.kode}** terkirim ke petugas. Pantau statusnya di #/laporan.`;

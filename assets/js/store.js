@@ -57,6 +57,14 @@ const cache = {
 
 /* ---------- Pemuat ------------------------------------------------------- */
 
+// Siswa wajib memakai email sekolah: NIS@student.smktelkom-pwt.sch.id (NIS berupa angka).
+// Akun petugas dikecualikan karena dibuat oleh admin.
+const POLA_EMAIL_SISWA = /^[0-9]+@student\.smktelkom-pwt\.sch\.id$/i;
+const PESAN_EMAIL_SISWA = "Harus gunakan email sekolah (NIS@student.smktelkom-pwt.sch.id).";
+function emailSiswaValid(email) {
+  return POLA_EMAIL_SISWA.test(String(email || "").trim());
+}
+
 async function muatSesi() {
   const { data } = await sb.auth.getSession();
   const user = data.session && data.session.user;
@@ -350,11 +358,18 @@ const Store = {
     const { error } = await sb.auth.signInWithPassword({ email: String(email).trim(), password: sandi });
     if (error) return { ok: false, pesan: "Email atau kata sandi tidak cocok." };
     await muatSesi();
+    if (sesi && sesi.peran !== "petugas" && !emailSiswaValid(sesi.email)) {
+      await sb.auth.signOut();
+      sesi = null;
+      return { ok: false, pesan: PESAN_EMAIL_SISWA };
+    }
     cache.referensiSiap = false;
     await Promise.all([muatLaporan(), muatReferensi()]);
     return { ok: true, pengguna: sesi };
   },
+  emailSiswaValid,
   async daftar({ nama, kelas, email, sandi }) {
+    if (!emailSiswaValid(email)) return { ok: false, pesan: PESAN_EMAIL_SISWA };
     const { data, error } = await sb.auth.signUp({
       email: String(email).trim(),
       password: sandi,
@@ -362,7 +377,8 @@ const Store = {
     });
     if (error) {
       const sudah = /registered|exists/i.test(error.message);
-      return { ok: false, pesan: sudah ? "Email itu sudah terdaftar. Coba masuk." : `Pendaftaran gagal: ${error.message}` };
+      const bukanSekolah = /database error saving new user|EMAIL_BUKAN_SEKOLAH/i.test(error.message);
+      return { ok: false, pesan: sudah ? "Email itu sudah terdaftar. Coba masuk." : bukanSekolah ? PESAN_EMAIL_SISWA : `Pendaftaran gagal: ${error.message}` };
     }
     if (!data.session) {
       const masuk = await sb.auth.signInWithPassword({ email: String(email).trim(), password: sandi });
@@ -483,7 +499,7 @@ const Store = {
     return { ok: true };
   },
 
-  /* --- verifikasi laporan asal-asalan (petugas) --- */
+  /* --- petugas: tandai asal-asalan = tolak laporan (tanpa peringatan/blokir) --- */
   async tandaiAsal(kode, alasan) {
     const laporan = this.cariKode(kode);
     if (!laporan) return { ok: false, pesan: "Laporan tidak ditemukan." };
