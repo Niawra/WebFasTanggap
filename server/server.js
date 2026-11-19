@@ -180,6 +180,7 @@ function mulaiServer(portAwal) {
   return server;
 }
 
-mulaiServer(Number(PORT) || 5001);
+// Di Vercel, app dijalankan sebagai serverless function (lihat api/index.js), jadi tidak listen.
+if (!process.env.VERCEL) mulaiServer(Number(PORT) || 5001);
 
 export default app;
