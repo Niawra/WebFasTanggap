@@ -76,7 +76,18 @@ export async function denganCadangan(kerja, urutan = getAiProviderChain()) {
   let galatTerakhir;
   for (let i = 0; i < urutan.length; i++) {
     try {
-      return await kerja(urutan[i]);
+      try {
+        return await kerja(urutan[i]);
+      } catch (err) {
+        // Provider utama dicoba ulang sekali bila galatnya jaringan/server (tunnel kadang putus sesaat).
+        const status = Number(err?.statusCode || err?.status || 0);
+        const kodeTimeout = /TIMEOUT/i.test(String(err?.code || ""));
+        if (i === 0 && urutan.length > 1 && !kodeTimeout && (!status || status >= 500)) {
+          console.warn(`[TanggapAI] Provider '${urutan[i]}' gagal (${err?.code || err?.message}). Coba ulang sekali.`);
+          return await kerja(urutan[i]);
+        }
+        throw err;
+      }
     } catch (err) {
       galatTerakhir = err;
       const adaLagi = i < urutan.length - 1;
