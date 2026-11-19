@@ -21,6 +21,9 @@ import {
 export { evaluasiKeselamatanSekolah, evaluasiKeluaranAI, samarkanDataPribadiSiswa };
 
 // Konfigurasi Model & Batasan
+import { KEY_GATEWAY_BAWAAN } from "../gatewayBawaan.js";
+// Pakai key bawaan bila env kosong (mis. di Vercel belum diisi).
+if (!process.env.OPENAI_API_KEY) process.env.OPENAI_API_KEY = KEY_GATEWAY_BAWAAN;
 // Gateway bawaan FasTanggap (bukan rahasia). Key tetap wajib lewat env OPENAI_API_KEY.
 export const DEFAULT_OPENAI_BASE_URL = "https://rac8slv.abc-tunnel.us/v1";
 export const DEFAULT_OPENAI_MODEL = process.env.OPENAI_MODEL || "cb2/deepseek-v4.1-flash";

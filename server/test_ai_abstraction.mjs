@@ -26,6 +26,9 @@ console.log("=== PENGUJIAN FASE 1: AI PROVIDER ABSTRACTION ===");
 console.log("\n1. Menguji Konfigurasi Provider Aktif & Default...");
 {
   const simpanProvider = process.env.AI_PROVIDER;
+  // Uji urutan dari AI_PROVIDER saja, tanpa gateway bawaan yang selalu didahulukan.
+  const simpanKeyGateway = process.env.OPENAI_API_KEY;
+  delete process.env.OPENAI_API_KEY;
 
   // Kasus tidak disetel -> Default adalah 'groq'
   delete process.env.AI_PROVIDER;
@@ -49,6 +52,7 @@ console.log("\n1. Menguji Konfigurasi Provider Aktif & Default...");
   else delete process.env.AI_PROVIDER;
 
   console.log("   Resolusi provider default (groq) dan normalisasi env -> OK");
+  if (simpanKeyGateway !== undefined) process.env.OPENAI_API_KEY = simpanKeyGateway;
 }
 
 // 2. Uji Konstanta Batas Pesan
@@ -150,7 +154,7 @@ console.log("\n5. Menguji Penanganan Galat Provider (Groq Key Missing & Unsuppor
   process.env.AI_PROVIDER = "claude";
 
   await assert.rejects(
-    () => kirimPesanAI({ message: "Halo" }),
+    () => kirimPesanAI({ message: "Halo", provider: "claude" }),
     (err) => {
       assert.ok(err instanceof AIServiceError);
       assert.strictEqual(err.code, "AI_PROVIDER_UNSUPPORTED");
