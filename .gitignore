@@ -6,3 +6,7 @@ server/node_modules/
 server/.env
 server/.env.local
 server/.env.*.local
+
+# Log lokal server dan tunnel
+server.log
+cloudflared.log
