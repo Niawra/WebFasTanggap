@@ -10,3 +10,5 @@ server/.env.*.local
 # Log lokal server dan tunnel
 server.log
 cloudflared.log
+node_modules/
+.vercel

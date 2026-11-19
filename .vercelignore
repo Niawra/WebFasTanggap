@@ -1,0 +1,4 @@
+android/
+server/node_modules/
+server/test_*.mjs
+*.log
