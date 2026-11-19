@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { getAiProviderChain } from "../services/ai/index.js";
 
 const router = Router();
 
@@ -14,11 +15,7 @@ router.get("/health", (req, res) => {
     uptime: Math.floor(process.uptime()),
     environment: process.env.NODE_ENV || "development",
     // Urutan provider AI dan apakah key-nya terpasang (tanpa membuka isi key).
-    ai: String(process.env.AI_PROVIDER || "groq")
-      .split(",")
-      .map((p) => p.trim().toLowerCase())
-      .filter(Boolean)
-      .map((p) => ({ provider: p, key: Boolean(process.env[`${p.toUpperCase()}_API_KEY`]) })),
+    ai: getAiProviderChain().map((p) => ({ provider: p, key: Boolean(process.env[`${p.toUpperCase()}_API_KEY`]) })),
   });
 });
 
