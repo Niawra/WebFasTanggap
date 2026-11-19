@@ -831,6 +831,49 @@ function pasangLihatSandi() {
   });
 }
 
+// Tombol "Continue with student.smktelkom-pwt.sch.id": kirim link masuk ke email sekolah (tanpa kata sandi).
+const TEKS_TOMBOL_SEKOLAH = "Continue with student.smktelkom-pwt.sch.id";
+function tombolSekolah() {
+  return `
+    <button class="tombol-sekolah" type="button" data-link-masuk>
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+        <rect x="2.5" y="4.5" width="19" height="15" rx="3" fill="#fce9e7" stroke="#dd3333" stroke-width="1.6"/>
+        <path d="m4 7 8 6 8-6" fill="none" stroke="#dd3333" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>${TEKS_TOMBOL_SEKOLAH}</span>
+    </button>
+    <p class="tombol-sekolah__bantuan">Isi email sekolahmu di bawah, lalu klik tombol ini. Kami kirim link masuk, tanpa kata sandi. Akun baru langsung dibuat.</p>
+    <div class="pemisah-atau"><span>atau pakai email &amp; kata sandi</span></div>`;
+}
+
+function pasangTombolSekolah({ email, nama, kotak }) {
+  const tombol = document.querySelector("[data-link-masuk]");
+  if (!tombol) return;
+  tombol.addEventListener("click", async () => {
+    const elEmail = document.querySelector(email);
+    const elKotak = document.querySelector(kotak);
+    const tampilkan = (teks, sukses) => {
+      elKotak.textContent = teks;
+      elKotak.classList.toggle("kotak-sukses", Boolean(sukses));
+      elKotak.hidden = false;
+    };
+    if (!Store.emailSiswaValid(elEmail.value)) {
+      elEmail.setAttribute("aria-invalid", "true");
+      elEmail.focus();
+      tampilkan("Harus gunakan email sekolah (NIS@student.smktelkom-pwt.sch.id).");
+      return;
+    }
+    elEmail.removeAttribute("aria-invalid");
+    tombol.disabled = true;
+    tombol.querySelector("span").textContent = "Mengirim link...";
+    const hasil = await Store.kirimLinkMasuk(elEmail.value, nama ? document.querySelector(nama).value : "");
+    tombol.disabled = false;
+    tombol.querySelector("span").textContent = TEKS_TOMBOL_SEKOLAH;
+    if (hasil.ok) tampilkan(`Link masuk sudah dikirim ke ${hasil.email}. Buka email sekolahmu lalu klik linknya.`, true);
+    else tampilkan(hasil.pesan);
+  });
+}
+
 function halamanDaftar() {
   if (Store.sesi()) {
     location.hash = "#/laporan";
@@ -852,8 +895,9 @@ function halamanDaftar() {
         <form class="auth__form formulir" id="formDaftar" novalidate>
           <div>
             <h1>Daftar akun siswa</h1>
-            <p class="auth__sub">Isi data dirimu. Akun petugas dibuat oleh sekolah.</p>
+            <p class="auth__sub">Paling cepat lewat link ke email sekolahmu. Akun petugas dibuat oleh sekolah.</p>
           </div>
+          ${tombolSekolah()}
           <div class="medan__baris">
             <div class="medan">
               <label for="dNama">Nama lengkap</label>
@@ -897,6 +941,7 @@ function halamanDaftar() {
     </section>`;
 
   pasangLihatSandi();
+  pasangTombolSekolah({ email: "#dPengguna", nama: "#dNama", kotak: "#gDaftar" });
 
   document.querySelector("#formDaftar").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -962,37 +1007,110 @@ function kartuHasilLacak(laporan) {
 
 /* ---------- Halaman: lacak ---------------------------------------------- */
 
+const LANGKAH_LACAK = [
+  { s: "menunggu", judul: "Dikirim", teks: "Menunggu diperiksa petugas" },
+  { s: "diproses", judul: "Diproses", teks: "Petugas sedang menangani" },
+  { s: "selesai", judul: "Selesai", teks: "Fasilitas sudah diperbaiki" },
+];
+
+function hasilLacak(l) {
+  const ditolak = l.status === "ditolak";
+  const urut = ditolak ? 0 : (STATUS[l.status] || STATUS.menunggu).urut;
+  const langkah = LANGKAH_LACAK.map((x, i) => {
+    const kelas = ditolak ? (i === 0 ? "selesai" : "") : i < urut ? "selesai" : i === urut ? "aktif" : "";
+    return `<li class="lk-langkah ${kelas}">
+        <span class="lk-langkah__titik" aria-hidden="true">${i < urut || (ditolak && i === 0) ? "&#10003;" : i + 1}</span>
+        <span class="lk-langkah__judul">${esc(x.judul)}</span>
+        <span class="lk-langkah__teks">${esc(x.teks)}</span>
+      </li>`;
+  }).join("");
+  const riwayat = (l.riwayat || []).slice().reverse().map((r) => `
+      <li class="lk-riwayat__item" data-nada="${esc((STATUS[r.status] || STATUS.menunggu).nada)}">
+        <div class="lk-riwayat__kepala">
+          <strong>${esc((STATUS[r.status] || STATUS.menunggu).label)}</strong>
+          <time>${esc(tanggal(r.waktu, true))}</time>
+        </div>
+        <p>${esc(r.catatan || "")}</p>
+      </li>`).join("");
+  return `
+    <article class="lk-hasil">
+      <header class="lk-hasil__kepala">
+        <div>
+          <div class="lk-hasil__kode">${esc(l.kode)}</div>
+          <h2 class="lk-hasil__judul">${esc(l.judul)}</h2>
+          <div class="lk-hasil__meta">
+            <span>${esc(l.kategoriNama || namaKategori(l.kategoriId))}</span>
+            <span>${esc(l.lokasi)}</span>
+            <span>Dikirim ${esc(relatif(l.dibuat))}</span>
+          </div>
+        </div>
+        ${statusPil(l.status)}
+      </header>
+      ${ditolak
+        ? `<div class="lk-tolak"><strong>Laporan ditolak.</strong> Laporan ini tidak diproses lebih lanjut. Lihat catatan petugas di bawah.</div>`
+        : `<ol class="lk-langkah-daftar" style="--maju:${urut / (LANGKAH_LACAK.length - 1)}">${langkah}</ol>`}
+      ${l.deskripsi ? `<div class="lk-blok"><h3>Keterangan</h3><p>${esc(l.deskripsi)}</p></div>` : ""}
+      ${riwayat ? `<div class="lk-blok"><h3>Riwayat penanganan</h3><ol class="lk-riwayat">${riwayat}</ol></div>` : ""}
+      <footer class="lk-hasil__kaki">
+        <a class="tombol tombol--garis" href="#/laporan/${encodeURIComponent(l.kode)}">Buka detail laporan</a>
+      </footer>
+    </article>`;
+}
+
 function halamanLacak() {
   akar.innerHTML = `
-    <section class="halaman">
+    <section class="halaman lk-halaman">
       <div class="bungkus sempit">
         <div class="halaman__kepala">
           <div>
             <h1>Lacak laporan</h1>
-            <p>Masukkan nomor laporan yang kamu terima setelah mengirim. Tidak perlu masuk.</p>
+            <p>Cek perkembangan laporanmu cukup dengan nomornya. Tidak perlu masuk.</p>
           </div>
         </div>
-        <form class="formulir" id="formLacak" novalidate>
-          <div class="medan">
-            <label for="kode">Nomor laporan <span class="medan__wajib">(wajib)</span></label>
-            <input type="text" id="kode" name="kode" placeholder="FT-2611-001" autocomplete="off" autofocus />
-            <p class="medan__bantuan">Formatnya FT, diikuti tahun dan bulan, lalu nomor urut. Contoh: FT-2611-003.</p>
-            <p class="medan__galat" id="galatKode" role="alert"></p>
+
+        <form class="lk-cari" id="formLacak" novalidate role="search">
+          <label class="lk-cari__label" for="kode">Nomor laporan</label>
+          <div class="lk-cari__baris">
+            <div class="lk-cari__kolom">
+              <svg class="lk-cari__ikon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              <input type="text" id="kode" name="kode" placeholder="FT-2611-001" autocomplete="off" spellcheck="false" autofocus />
+            </div>
+            <button class="tombol tombol--utama" type="submit">Lacak</button>
           </div>
-          <div class="formulir__aksi">
-            <button class="tombol tombol--utama" type="submit">Cek status laporan</button>
-            <a class="tombol tombol--teks" href="#/">Kembali ke beranda</a>
-          </div>
+          <p class="lk-cari__bantuan">Nomor ada di layar setelah laporan terkirim, contohnya <button type="button" class="lk-contoh" data-kode="FT-2611-003">FT-2611-003</button>.</p>
+          <p class="medan__galat" id="galatKode" role="alert"></p>
         </form>
-        <div class="lacak-hasil" id="hasil" aria-live="polite"></div>
+
+        <div id="hasil" aria-live="polite">
+          <div class="lk-kosong">
+            <h2>Arti tiap status</h2>
+            <ul class="lk-arti">
+              <li><span class="status" data-nada="tunggu">Menunggu verifikasi</span><p>Laporan sudah masuk dan menunggu dicek petugas sarana.</p></li>
+              <li><span class="status" data-nada="proses">Diproses</span><p>Petugas sudah mengambil laporan dan sedang memperbaiki.</p></li>
+              <li><span class="status" data-nada="selesai">Selesai</span><p>Fasilitas sudah diperbaiki dan laporan ditutup.</p></li>
+              <li><span class="status" data-nada="tolak">Ditolak</span><p>Laporan tidak jelas atau tidak sesuai, sehingga tidak diproses.</p></li>
+            </ul>
+          </div>
+        </div>
       </div>
     </section>`;
 
-  document.querySelector("#formLacak").addEventListener("submit", (e) => {
+  const form = document.querySelector("#formLacak");
+  const input = document.querySelector("#kode");
+  const galat = document.querySelector("#galatKode");
+  const hasil = document.querySelector("#hasil");
+
+  form.querySelector(".lk-contoh").addEventListener("click", (e) => {
+    input.value = e.currentTarget.dataset.kode;
+    input.focus();
+  });
+  input.addEventListener("input", () => {
+    galat.classList.remove("tampil");
+    input.removeAttribute("aria-invalid");
+  });
+
+  form.addEventListener("submit", (e) => {
     e.preventDefault();
-    const input = document.querySelector("#kode");
-    const galat = document.querySelector("#galatKode");
-    const hasil = document.querySelector("#hasil");
     const nilai = input.value.trim();
     if (!nilai) {
       galat.textContent = "Nomor laporan belum diisi.";
@@ -1001,13 +1119,17 @@ function halamanLacak() {
       input.focus();
       return;
     }
-    galat.classList.remove("tampil");
-    input.removeAttribute("aria-invalid");
-    hasil.innerHTML = `<div class="memuat" role="status" aria-label="Mencari laporan"><span></span><span></span></div>`;
+    const tombol = form.querySelector("button[type=submit]");
+    tombol.disabled = true;
+    hasil.innerHTML = `<div class="lk-memuat" role="status">Mencari laporan ${esc(nilai.toUpperCase())}…</div>`;
     Store.cariKodeJauh(nilai).then((laporan) => {
+      tombol.disabled = false;
       hasil.innerHTML = laporan
-        ? kartuHasilLacak(laporan)
-        : `<div class="galat-kotak">Tidak ada laporan dengan nomor <strong>${esc(nilai.toUpperCase())}</strong>. Coba periksa lagi, atau hubungi petugas sarana kalau nomornya yakin benar.</div>`;
+        ? hasilLacak(laporan)
+        : `<div class="lk-tidak-ada">
+             <h2>Laporan tidak ditemukan</h2>
+             <p>Tidak ada laporan dengan nomor <strong>${esc(nilai.toUpperCase())}</strong>. Periksa lagi penulisannya, atau hubungi petugas sarana kalau nomornya sudah benar.</p>
+           </div>`;
     });
   });
 }
@@ -1035,8 +1157,9 @@ function halamanMasuk() {
         <form class="auth__form formulir" id="formMasuk" novalidate>
           <div>
             <h1>Masuk</h1>
-            <p class="auth__sub">Selamat datang kembali. Masuk dengan email akunmu.</p>
+            <p class="auth__sub">Selamat datang kembali. Belum punya akun? Lewat tombol email sekolah akan langsung dibuatkan.</p>
           </div>
+          ${tombolSekolah()}
           <div class="medan">
             <label for="namaPengguna">Email</label>
             <input type="email" id="namaPengguna" name="namaPengguna" autocomplete="email" placeholder="NIS@student.smktelkom-pwt.sch.id" />
@@ -1059,6 +1182,13 @@ function halamanMasuk() {
     </section>`;
 
   pasangLihatSandi();
+  pasangTombolSekolah({ email: "#namaPengguna", kotak: "#galatMasuk" });
+  if (Store.hasilLink && !Store.hasilLink.ok) {
+    const kotak = document.querySelector("#galatMasuk");
+    kotak.textContent = Store.hasilLink.pesan;
+    kotak.hidden = false;
+    Store.hasilLink = null;
+  }
 
   document.querySelector("#formMasuk").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -2208,6 +2338,14 @@ const minimalPembuka = new Promise((r) => setTimeout(r, 1300));
 Store.siapkan()
   .catch((galat) => console.warn("[FasTanggap] gagal menyiapkan data", galat))
   .then(() => {
+    const g = Store.hasilLink;
+    if (g && g.ok) {
+      Store.hasilLink = null;
+      location.hash = g.pengguna.peran === "petugas" ? "#/petugas" : "#/laporan";
+      setTimeout(() => toast(`Selamat datang, ${g.pengguna.nama}.`), 1400);
+    } else if (g && !g.ok && location.hash !== "#/masuk") {
+      location.hash = "#/masuk";
+    }
     gambarAksi();
     gambarRute();
     return minimalPembuka;

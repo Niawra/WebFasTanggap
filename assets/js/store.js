@@ -43,7 +43,7 @@ const CONTOH_KATEGORI = {
 };
 
 const KONFIG = window.FASTANGGAP_SUPABASE || {};
-const sb = window.supabase.createClient(KONFIG.url, KONFIG.anonKey);
+const sb = window.supabase.createClient(KONFIG.url, KONFIG.anonKey, { auth: { flowType: "pkce" } });
 const BUCKET = "report-photos";
 
 let sesi = null;
@@ -63,6 +63,36 @@ const POLA_EMAIL_SISWA = /^[0-9]+@student\.smktelkom-pwt\.sch\.id$/i;
 const PESAN_EMAIL_SISWA = "Harus gunakan email sekolah (NIS@student.smktelkom-pwt.sch.id).";
 function emailSiswaValid(email) {
   return POLA_EMAIL_SISWA.test(String(email || "").trim());
+}
+
+// Dipanggil saat halaman dibuka: kalau baru kembali dari link masuk di email, pastikan emailnya email sekolah.
+async function periksaKembaliDariLink() {
+  const url = new URL(location.href);
+  const galatUrl = url.searchParams.get("error_description") || url.searchParams.get("error");
+  if (!url.searchParams.has("code") && !galatUrl) return;
+
+  // Bersihkan ?code=... / ?error=... dari alamat.
+  ["code", "error", "error_code", "error_description"].forEach((k) => url.searchParams.delete(k));
+  history.replaceState(null, "", url.pathname + url.search + (url.hash || "#/"));
+
+  if (galatUrl) {
+    Store.hasilLink = {
+      ok: false,
+      pesan: /database error/i.test(galatUrl) ? PESAN_EMAIL_SISWA : "Link masuk sudah kedaluwarsa atau sudah dipakai. Minta link baru.",
+    };
+    return;
+  }
+  if (!sesi) {
+    Store.hasilLink = { ok: false, pesan: "Link masuk tidak valid. Buka link dari browser yang sama, atau minta link baru." };
+    return;
+  }
+  if (sesi.peran !== "petugas" && !emailSiswaValid(sesi.email)) {
+    await sb.auth.signOut();
+    sesi = null;
+    Store.hasilLink = { ok: false, pesan: PESAN_EMAIL_SISWA };
+    return;
+  }
+  Store.hasilLink = { ok: true, pengguna: sesi };
 }
 
 async function muatSesi() {
@@ -259,6 +289,7 @@ const Store = {
   // Dipanggil sekali saat halaman dibuka.
   async siapkan() {
     await muatSesi();
+    await periksaKembaliDariLink();
     await Promise.all([muatPublik(), muatLaporan()]);
     await muatReferensi();
     return true;
@@ -368,6 +399,28 @@ const Store = {
     return { ok: true, pengguna: sesi };
   },
   emailSiswaValid,
+  hasilLink: null,
+  // Masuk atau daftar sekaligus lewat link yang dikirim ke email sekolah (tanpa kata sandi).
+  // Akun yang belum ada otomatis dibuat.
+  async kirimLinkMasuk(email, nama) {
+    const bersih = String(email || "").trim().toLowerCase();
+    if (!emailSiswaValid(bersih)) return { ok: false, pesan: PESAN_EMAIL_SISWA };
+    const { error } = await sb.auth.signInWithOtp({
+      email: bersih,
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: location.origin + location.pathname,
+        data: { full_name: (nama || "").trim() || bersih.split("@")[0] },
+      },
+    });
+    if (error) {
+      const m = error.message || "";
+      if (/rate limit|too many|seconds/i.test(m)) return { ok: false, pesan: "Terlalu sering meminta link. Tunggu sebentar lalu coba lagi." };
+      if (/database error/i.test(m)) return { ok: false, pesan: PESAN_EMAIL_SISWA };
+      return { ok: false, pesan: "Link masuk gagal dikirim. Coba lagi." };
+    }
+    return { ok: true, email: bersih };
+  },
   async daftar({ nama, kelas, email, sandi }) {
     if (!emailSiswaValid(email)) return { ok: false, pesan: PESAN_EMAIL_SISWA };
     const { data, error } = await sb.auth.signUp({
