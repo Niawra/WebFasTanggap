@@ -8,6 +8,7 @@
  */
 
 import { Router } from "express";
+import { ambilKonteksData } from "../services/ai/konteksData.js";
 import rateLimit from "express-rate-limit";
 import {
   kirimPesanAI,
@@ -163,6 +164,16 @@ router.post("/chat", authMiddleware, chatRateLimiter, async (req, res) => {
       provider = "gemini";
     }
 
+    // Data nyata dari database (dibaca dengan token pengguna, RLS tetap berlaku). Dilewati saat uji mock.
+    const konteksData = clientMock
+      ? ""
+      : await ambilKonteksData({
+          token: String(req.headers.authorization || "").replace(/^Bearer\s+/i, "").trim(),
+          role: roleTerverifikasi,
+          userId: req.userAuth?.user?.id || "",
+          pesan: pesanBersih,
+        }).catch(() => "");
+
     const hasil = await kirimPesanAI({
       message: pesanBersih,
       history: Array.isArray(history) ? history : [],
@@ -170,7 +181,9 @@ router.post("/chat", authMiddleware, chatRateLimiter, async (req, res) => {
       userName: namaPengguna,
       client: clientMock,
       provider,
-      ekstra: roleTerverifikasi === "siswa" ? promptPembuatLaporan(req.body.kategori, req.body.lokasi) : "",
+      ekstra: [konteksData, roleTerverifikasi === "siswa" ? promptPembuatLaporan(req.body.kategori, req.body.lokasi) : ""]
+        .filter(Boolean)
+        .join("\n\n"),
     });
 
     // Draf laporan dari AI (hanya untuk siswa) -> dipisah dari teks balasan

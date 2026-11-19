@@ -333,6 +333,9 @@ try {
   // 503 Layanan AI Belum Dikonfigurasi (Tanpa Mock)
   app.locals.supabaseVerifier = null;
   app.locals.geminiClient = null; // Menghapus mock untuk menguji penolakan aman kunci placeholder
+  // Gateway deepseek bawaan selalu didahulukan bila key-nya ada; matikan sementara untuk uji ini.
+  const simpanKeyGateway = process.env.OPENAI_API_KEY;
+  delete process.env.OPENAI_API_KEY;
   const err503 = await apiRequest("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -340,6 +343,7 @@ try {
   });
   assert.equal(err503.status, 503);
   assert.equal(err503.json.error.code, "GEMINI_KEY_MISSING");
+  if (simpanKeyGateway !== undefined) process.env.OPENAI_API_KEY = simpanKeyGateway;
   console.log("   [503] Kunci placeholder ditolak dengan aman 503 GEMINI_KEY_MISSING -> OK");
 
   // 504 Timeout
