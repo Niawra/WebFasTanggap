@@ -1,0 +1,26 @@
+# Blueprint Render untuk FasTanggap.
+# Satu web service: Express di folder server/ sekaligus menyajikan website (index.html + assets).
+# Rahasia (GROQ_API_KEY, SUPABASE_ANON_KEY) diisi di dashboard Render, tidak di file ini.
+services:
+  - type: web
+    name: fastanggap
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: cd server && npm ci
+    startCommand: cd server && node server.js
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: AI_PROVIDER
+        value: groq
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-120b
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        value: https://gaxykcqqhsdigeviqosl.supabase.co
+      - key: SUPABASE_ANON_KEY
+        sync: false
