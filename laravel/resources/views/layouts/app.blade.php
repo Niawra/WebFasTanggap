@@ -7,10 +7,12 @@
     <link rel="icon" href="{{ asset('img/favicon.png') }}">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Roboto:wght@400;500&display=swap">
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/kaca-cair.css') }}">
+    <script src="{{ asset('js/kaca-cair.js') }}" defer></script>
 </head>
 <body>
 <div class="kerangka">
-    <aside class="samping">
+    <aside class="samping kaca" data-kaca data-kaca-tepi="22" data-kaca-kuat="30">
         <div class="merek"><img src="{{ asset('img/logo.png') }}" alt=""> FasTanggap</div>
 
         <a class="menu {{ request()->routeIs('dashboard') ? 'aktif' : '' }}" href="{{ route('dashboard') }}">Dashboard</a>
