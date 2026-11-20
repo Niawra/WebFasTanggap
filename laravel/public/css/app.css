@@ -95,35 +95,3 @@ form.sebaris { display: inline; }
   table { font-size: 14px; }
   .tabel-gulir { overflow-x: auto; }
 }
-
-/* ---------- Kaca cair: sidebar mengambang (lihat kaca-cair.css) ---------- */
-body {
-  background:
-    radial-gradient(520px 420px at 0% 0%, rgba(221, 51, 51, 0.22), transparent 70%),
-    radial-gradient(460px 380px at 12% 100%, rgba(255, 170, 120, 0.28), transparent 70%),
-    var(--latar);
-  background-attachment: fixed;
-}
-.kerangka { grid-template-columns: 264px 1fr; }
-.samping.kaca {
-  position: sticky; top: 14px; align-self: start;
-  margin: 14px 0 14px 14px; height: calc(100vh - 28px); box-sizing: border-box;
-  border-radius: 24px; color: var(--tinta);
-}
-.samping.kaca .merek { color: var(--tinta); }
-.samping.kaca a.menu { color: var(--tinta); font-weight: 500; }
-.samping.kaca a.menu:hover { background: rgba(255, 255, 255, 0.7); color: var(--merah-tua); }
-.samping.kaca a.menu.aktif {
-  background: linear-gradient(180deg, #e54a4a, var(--merah)); color: #fff;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 8px 18px -10px rgba(221, 51, 51, 0.9);
-}
-.samping.kaca .label { color: var(--tinta-lembut); }
-.samping.kaca .bawah { border-top-color: rgba(46, 46, 46, 0.1); }
-@media (max-width: 800px) {
-  .kerangka { grid-template-columns: 1fr; }
-  /* HP: sidebar jadi bilah atas kaca yang lengket; konten bergulir di belakangnya. */
-  .samping.kaca {
-    top: 8px; z-index: 20; height: auto; margin: 8px 8px 0; border-radius: 22px; padding: 10px 12px;
-  }
-  .samping.kaca .bawah { border-top: 1px solid rgba(46, 46, 46, 0.1); padding: 8px 4px 0; }
-}
