@@ -1,9 +1,5 @@
 package id.fastanggap.app.ui
 
-import android.graphics.RenderEffect
-import android.graphics.RuntimeShader
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -48,7 +44,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -108,83 +103,6 @@ fun Modifier.kaca(state: HazeState, bentuk: RoundedCornerShape = RoundedCornerSh
             bentuk,
         )
 
-/*
- * Refraksi kaca cair (API 33+, AGSL). Teknik diadaptasi dari liquid-glass-studio (MIT):
- * di dalam bezel selebar `tepi`, piksel diambil dari arah dalam mengikuti normal SDF
- * rounded-rect (profil kuadrat seperti lensa cembung). Kanal R/G/B digeser dengan skala
- * sedikit berbeda (chromatic aberration), lalu ditambah sorotan specular dari kiri-atas.
- * API 31–32 tetap mendapat blur Haze, API < 31 mendapat lapisan putih tembus pandang.
- */
-private const val SHADER_KACA = """
-uniform shader isi;
-uniform float2 ukuran;
-uniform float radius;
-uniform float tepi;
-uniform float kuat;
-
-half4 main(float2 p) {
-    float2 h = ukuran * 0.5;
-    float2 c = p - h;
-    float2 q = abs(c) - (h - radius);
-    float sdf = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
-    float d = -sdf;
-    if (d <= 0.0 || d >= tepi) return isi.eval(p);
-
-    float2 n;
-    if (max(q.x, q.y) > 0.0) {
-        n = normalize(max(q, 0.0)) * sign(c);
-    } else if (q.x > q.y) {
-        n = float2(sign(c.x), 0.0);
-    } else {
-        n = float2(0.0, sign(c.y));
-    }
-    float t = 1.0 - d / tepi;
-    float k = t * t;
-    float2 geser = -n * k * kuat;
-
-    half4 dasar = isi.eval(p + geser);
-    half r = isi.eval(p + geser * 1.08).r;
-    half b = isi.eval(p + geser * 0.90).b;
-    half4 warna = half4(r, dasar.g, b, dasar.a);
-
-    float kilau = max(dot(n, normalize(float2(-0.55, -0.85))), 0.0);
-    warna.rgb += half3(kilau * k * 0.45) * warna.a;
-    return warna;
-}
-"""
-
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
-private fun efekKaca(shader: RuntimeShader, w: Float, h: Float, radius: Float, tepi: Float, kuat: Float) =
-    shader.run {
-        setFloatUniform("ukuran", w, h)
-        setFloatUniform("radius", radius)
-        setFloatUniform("tepi", tepi)
-        setFloatUniform("kuat", kuat)
-        RenderEffect.createRuntimeShaderEffect(this, "isi").asComposeRenderEffect()
-    }
-
-/**
- * Lapisan latar kaca cair: blur Haze + refraksi tepi (API 33+). Pakai sebagai latar
- * terpisah di bawah konten supaya ikon/teks tidak ikut terdistorsi.
- */
-@Composable
-fun Modifier.kacaCair(state: HazeState, tepi: Dp = 18.dp, kuat: Dp = 9.dp): Modifier {
-    val dasar = this
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return dasar.kaca(state)
-    val shader = remember { RuntimeShader(SHADER_KACA) }
-    return dasar
-        .graphicsLayer {
-            if (size.width > 0f && size.height > 0f) {
-                renderEffect = efekKaca(
-                    shader, size.width, size.height,
-                    radius = size.minDimension / 2f,
-                    tepi = tepi.toPx(), kuat = kuat.toPx(),
-                )
-            }
-        }
-        .kaca(state)
-}
-
 data class ItemNav(val label: String, val ikon: ImageVector)
 
 /**
@@ -207,13 +125,11 @@ fun BilahKaca(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Box(Modifier.weight(1f).height(66.dp)) {
-        // Latar kaca cair terpisah dari konten: refraksi hanya membengkokkan latar.
-        Box(Modifier.matchParentSize().kacaCair(state))
         BoxWithConstraints(
             Modifier
-                .fillMaxWidth()
-                .fillMaxHeight()
+                .weight(1f)
+                .height(66.dp)
+                .kaca(state)
                 .padding(5.dp),
         ) {
             val lebarItem = maxWidth / item.size
@@ -246,7 +162,6 @@ fun BilahKaca(
                     }
                 }
             }
-        }
         }
         if (aksi != null) {
             val sumber = remember { MutableInteractionSource() }
