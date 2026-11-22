@@ -3,7 +3,7 @@
  * Pengujian unit untuk Lapisan Abstraksi Layanan AI (Fase Abstraksi Multi-Provider).
  * 
  * Menguji:
- * 1. Default provider fallback ke 'groq'.
+ * 1. Default provider fallback ke 'openai'; groq dimatikan dari urutan.
  * 2. Eksekusi kirimPesanAI() mendelegasikan ke Groq saat provider 'groq' (default).
  * 3. Eksekusi kirimPesanAI() mendelegasikan ke Gemini saat provider 'gemini'.
  * 4. Penolakan aman saat provider tidak didukung (misal 'claude') dengan kode AI_PROVIDER_UNSUPPORTED (503).
@@ -14,6 +14,7 @@ import assert from "node:assert/strict";
 import {
   kirimPesanAI,
   getActiveAiProvider,
+  getAiProviderChain,
   AIServiceError,
   DEFAULT_AI_PROVIDER,
   SUPPORTED_AI_PROVIDERS,
@@ -30,15 +31,21 @@ console.log("\n1. Menguji Konfigurasi Provider Aktif & Default...");
   const simpanKeyGateway = process.env.OPENAI_API_KEY;
   delete process.env.OPENAI_API_KEY;
 
-  // Kasus tidak disetel -> Default adalah 'groq'
+  // Kasus tidak disetel -> Default adalah 'openai' (gateway DeepSeek)
   delete process.env.AI_PROVIDER;
-  assert.strictEqual(getActiveAiProvider(), "groq");
-  assert.strictEqual(DEFAULT_AI_PROVIDER, "groq");
+  assert.strictEqual(getActiveAiProvider(), "openai");
+  assert.strictEqual(DEFAULT_AI_PROVIDER, "openai");
   assert.deepStrictEqual(SUPPORTED_AI_PROVIDERS, ["groq", "gemini", "openai"]);
 
-  // Kasus whitespace atau uppercase
+  // Groq dimatikan: tidak pernah masuk urutan, walau disebut di AI_PROVIDER
   process.env.AI_PROVIDER = "  GROQ  ";
-  assert.strictEqual(getActiveAiProvider(), "groq");
+  assert.strictEqual(getActiveAiProvider(), "openai");
+  process.env.AI_PROVIDER = "openai,groq";
+  assert.deepStrictEqual(getAiProviderChain(), ["openai"]);
+
+  // Kasus whitespace atau uppercase
+  process.env.AI_PROVIDER = "  OPENAI  ";
+  assert.strictEqual(getActiveAiProvider(), "openai");
 
   // Kasus provider lain
   process.env.AI_PROVIDER = "gemini";
@@ -51,7 +58,7 @@ console.log("\n1. Menguji Konfigurasi Provider Aktif & Default...");
   if (simpanProvider !== undefined) process.env.AI_PROVIDER = simpanProvider;
   else delete process.env.AI_PROVIDER;
 
-  console.log("   Resolusi provider default (groq) dan normalisasi env -> OK");
+  console.log("   Resolusi provider default (openai, groq dimatikan) dan normalisasi env -> OK");
   if (simpanKeyGateway !== undefined) process.env.OPENAI_API_KEY = simpanKeyGateway;
 }
 

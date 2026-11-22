@@ -16,7 +16,12 @@ import { kirimPesanOpenAi } from "./adapters/openaiAdapter.js";
 import { kirimPesanGroq } from "./adapters/groqAdapter.js";
 
 // Konfigurasi Batas Karakter & Provider
-export const DEFAULT_AI_PROVIDER = "groq";
+export const DEFAULT_AI_PROVIDER = "openai";
+
+// Groq dimatikan atas keputusan pemilik: chatbot hanya memakai gateway DeepSeek
+// (OPENAI_*). Kalau gateway mati, pengguna melihat pesan galat, bukan jawaban Groq.
+// Hapus "groq" dari daftar ini untuk menyalakannya lagi.
+export const PROVIDER_DIMATIKAN = Object.freeze(["groq"]);
 export const SUPPORTED_AI_PROVIDERS = Object.freeze(["groq", "gemini", "openai"]);
 export const MAX_MESSAGE_LENGTH = GEMINI_MAX_MESSAGE_LENGTH || 500;
 
@@ -35,7 +40,7 @@ export class AIServiceError extends Error {
 
 /**
  * Mendapatkan nama provider AI aktif dari variabel lingkungan AI_PROVIDER.
- * Fallback ke DEFAULT_AI_PROVIDER ('gemini') jika tidak disetel atau kosong.
+ * Fallback ke DEFAULT_AI_PROVIDER ('openai') jika tidak disetel atau kosong.
  * 
  * @returns {string}
  */
@@ -52,7 +57,7 @@ export function getAiProviderChain() {
   const daftar = String(process.env.AI_PROVIDER || "")
     .split(",")
     .map((p) => p.trim().toLowerCase())
-    .filter(Boolean);
+    .filter((p) => p && !PROVIDER_DIMATIKAN.includes(p));
   const urutan = daftar.length ? daftar : [DEFAULT_AI_PROVIDER];
   // AI utama FasTanggap: kalau key gateway (OPENAI_API_KEY) terpasang, selalu dicoba paling dulu.
   if (process.env.OPENAI_API_KEY && !urutan.includes("openai")) urutan.unshift("openai");

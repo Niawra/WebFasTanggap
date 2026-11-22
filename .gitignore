@@ -12,3 +12,5 @@ server.log
 cloudflared.log
 node_modules/
 .vercel
+
+/.claude/
