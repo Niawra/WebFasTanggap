@@ -40,6 +40,7 @@ import androidx.compose.material.icons.rounded.Logout
 import androidx.compose.material.icons.rounded.PanTool
 import androidx.compose.material.icons.rounded.Report
 import androidx.compose.material.icons.rounded.Phone
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.TaskAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -385,6 +386,9 @@ fun AkunLayar(vm: AppViewModel) {
     val lingkup = rememberCoroutineScope()
     var nomor by remember(sesi.telepon) { mutableStateOf(sesi.telepon) }
     var sibuk by remember { mutableStateOf(false) }
+    var panggilan by remember(sesi.panggilan) { mutableStateOf(sesi.panggilan) }
+    var sibukPanggilan by remember { mutableStateOf(false) }
+    val tampil = sesi.panggilan.ifBlank { sesi.nama }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = RuangBilah)) {
         item { JudulBesar("Akun") }
         item {
@@ -395,19 +399,44 @@ fun AkunLayar(vm: AppViewModel) {
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            sesi.nama.split(" ").take(2).joinToString("") { it.take(1) }.uppercase(),
+                            tampil.split(" ").take(2).joinToString("") { it.take(1) }.uppercase(),
                             color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp,
                         )
                     }
                     Spacer(Modifier.width(14.dp))
                     Column {
-                        Text(sesi.nama, style = MaterialTheme.typography.titleMedium)
+                        Text(tampil, style = MaterialTheme.typography.titleMedium)
+                        if (sesi.panggilan.isNotBlank() && sesi.nama != sesi.panggilan && !sesi.nama.all { it.isDigit() }) {
+                            Text(sesi.nama, color = Warna.TintaLembut, fontSize = 13.sp)
+                        }
                         Text(
                             if (sesi.peran == Peran.PETUGAS) "Petugas sarana" else "Siswa${if (sesi.kelas.isNotBlank()) " · ${sesi.kelas}" else ""}",
                             color = Warna.TintaLembut, fontSize = 14.sp,
                         )
                         Text(sesi.email, color = Warna.TintaLembut, fontSize = 13.sp)
                     }
+                }
+            }
+        }
+        if (sesi.peran != Peran.PETUGAS) item {
+            Kartu(Modifier.padding(horizontal = 18.dp, vertical = 8.dp).fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Nama panggilan", style = MaterialTheme.typography.titleMedium)
+                    Text("Dipakai untuk menyapamu di Beranda.", color = Warna.TintaLembut, fontSize = 13.sp)
+                    Isian(panggilan, { panggilan = it.take(30) }, "Nama panggilan", Icons.Rounded.Person)
+                    TombolUtama(
+                        "Simpan nama panggilan",
+                        modifier = Modifier.fillMaxWidth(),
+                        aktif = panggilan.isNotBlank() && panggilan.trim() != sesi.panggilan,
+                        sibuk = sibukPanggilan,
+                        onClick = {
+                            sibukPanggilan = true
+                            lingkup.launch {
+                                vm.kabari(vm.simpanPanggilan(panggilan) ?: "Nama panggilan tersimpan")
+                                sibukPanggilan = false
+                            }
+                        },
+                    )
                 }
             }
         }

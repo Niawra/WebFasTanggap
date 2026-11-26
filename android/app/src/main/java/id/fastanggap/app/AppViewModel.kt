@@ -220,13 +220,19 @@ class AppViewModel private constructor(contoh: Boolean) : ViewModel() {
             .isSuccess
     }
 
-    suspend fun simpanPanggilan(panggilan: String): Boolean {
-        val s = sesi ?: return false
+    /** null = berhasil; selain itu pesan galat untuk ditampilkan. */
+    suspend fun simpanPanggilan(panggilan: String): String? {
+        val s = sesi ?: return "Belum masuk."
         val bersih = panggilan.trim().take(30)
-        if (bersih.isEmpty()) return false
+        if (bersih.isEmpty()) return "Nama panggilan belum diisi."
         return runCatching { Repo.simpanPanggilan(s.id, bersih) }
-            .onSuccess { sesi = s.copy(panggilan = bersih) }
-            .isSuccess
+            .fold(
+                onSuccess = { sesi = s.copy(panggilan = bersih); null },
+                onFailure = { e ->
+                    if (e.message.orEmpty().contains("nickname")) "Database belum siap. Minta admin menjalankan migrasi-nama-panggilan.sql di Supabase."
+                    else "Gagal menyimpan. Periksa koneksi internet."
+                },
+            )
     }
 
     suspend fun simpanTelepon(nomor: String): Boolean {

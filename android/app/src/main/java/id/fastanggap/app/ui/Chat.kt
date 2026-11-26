@@ -1,5 +1,10 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
+
 package id.fastanggap.app.ui
 
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -61,6 +66,16 @@ fun KartuChat(vm: AppViewModel, l: Laporan, modifier: Modifier = Modifier) {
     var tulis by remember(l.id) { mutableStateOf("") }
     var mengirim by remember { mutableStateOf(false) }
     val lingkup = rememberCoroutineScope()
+    val kolomTulis = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
+    var fokus by remember { mutableStateOf(false) }
+    val keyboardMuncul = androidx.compose.foundation.layout.WindowInsets.isImeVisible
+    // Setelah keyboard selesai muncul (atau pesan baru masuk), gulir agar kolom tulis terlihat.
+    LaunchedEffect(fokus, keyboardMuncul, pesan.size) {
+        if (fokus) {
+            kotlinx.coroutines.delay(250)
+            kolomTulis.bringIntoView()
+        }
+    }
 
     suspend fun lengkapiNama(ids: Collection<String>) {
         val kurang = ids.filter { it !in profil }
@@ -122,7 +137,10 @@ fun KartuChat(vm: AppViewModel, l: Laporan, modifier: Modifier = Modifier) {
             }
             if (!tutup) {
                 Spacer(Modifier.height(12.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    Modifier.bringIntoViewRequester(kolomTulis),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     OutlinedTextField(
                         value = tulis,
                         onValueChange = { if (it.length <= 1000) tulis = it },
@@ -130,7 +148,7 @@ fun KartuChat(vm: AppViewModel, l: Laporan, modifier: Modifier = Modifier) {
                         shape = RoundedCornerShape(50),
                         maxLines = 4,
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Warna.Merah, cursorColor = Warna.Merah),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).onFocusChanged { fokus = it.isFocused },
                     )
                     Spacer(Modifier.size(8.dp))
                     val bisa = tulis.isNotBlank() && !mengirim

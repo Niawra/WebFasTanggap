@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -236,8 +237,10 @@ fun DetailLaporan(vm: AppViewModel, l: Laporan, tutup: () -> Unit, aksi: @Compos
         Modifier
             .fillMaxSize()
             .background(Warna.Latar)
-            .verticalScroll(rememberScrollState())
-            .statusBarsPadding(),
+            .statusBarsPadding()
+            // Area gulir mengecil saat keyboard muncul, jadi kolom chat tidak tertutup.
+            .imePadding()
+            .verticalScroll(rememberScrollState()),
     ) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(l.kode, color = Warna.TintaLembut, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 8.dp).weight(1f))
@@ -374,7 +377,7 @@ fun DialogPanggilan(vm: AppViewModel) {
                 onClick = {
                     sibuk = true
                     lingkup.launch {
-                        if (!vm.simpanPanggilan(teks)) galat = "Gagal menyimpan. Periksa koneksi internet."
+                        galat = vm.simpanPanggilan(teks)
                         sibuk = false
                     }
                 },
