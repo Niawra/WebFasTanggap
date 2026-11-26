@@ -59,6 +59,7 @@ object Repo {
             id = user.id,
             email = user.email.orEmpty(),
             nama = profil?.nama ?: user.email.orEmpty().substringBefore("@"),
+            panggilan = profil?.nickname?.trim().orEmpty(),
             peran = if (profil?.role == "petugas") Peran.PETUGAS else Peran.SISWA,
             kelas = profil?.kelas.orEmpty(),
             telepon = profil?.phone.orEmpty(),
@@ -96,6 +97,13 @@ object Repo {
     }
 
     suspend fun keluar() = supabase.auth.signOut()
+
+    /** Simpan nama panggilan ke kolom profiles.nickname. */
+    suspend fun simpanPanggilan(idPengguna: String, panggilan: String) {
+        supabase.from("profiles").update({ set("nickname", panggilan.trim()) }) {
+            filter { eq("id", idPengguna) }
+        }
+    }
 
     /** Nomor WhatsApp disimpan dalam format 62xxxx tanpa tanda plus. */
     suspend fun simpanTelepon(idPengguna: String, nomor: String) {

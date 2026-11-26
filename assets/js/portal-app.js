@@ -240,7 +240,7 @@ function halamanLapor() {
     st.arah = n > st.langkah ? 1 : -1;
     st.langkah = n;
     gambar();
-    scrollTo({ top: 0 });
+    window.gulirKe(0, { langsung: true });
   };
 
   const pasang = () => {

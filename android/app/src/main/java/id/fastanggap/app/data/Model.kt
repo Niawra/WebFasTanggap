@@ -40,6 +40,7 @@ data class Profil(
     @SerialName("class_name") val kelas: String? = null,
     val phone: String? = null,
     @SerialName("warning_count") val peringatan: Int = 0,
+    val nickname: String? = null,
 )
 
 /** Kategori atau lokasi. */
@@ -87,6 +88,8 @@ data class Sesi(
     val kelas: String,
     val telepon: String,
     val peringatan: Int = 0,
+    /** Nama panggilan pilihan siswa; kosong berarti popup perlu ditampilkan. */
+    val panggilan: String = "",
 )
 
 /** Status di database → label dan warna yang dipakai di aplikasi. */

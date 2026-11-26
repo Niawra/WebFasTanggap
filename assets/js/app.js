@@ -306,7 +306,7 @@ function pasangCerita() {
       const tutup = kapsul ? Math.max(0, -parseFloat(getComputedStyle(kapsul).marginTop) || 0) : 0;
       const jarak = bagian.offsetHeight - innerHeight - tutup;
       const tujuan = bagian.offsetTop + (jarak * Number(el.dataset.keBab)) / (BAB_CERITA.length - 1);
-      scrollTo({ top: tujuan + 2, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+      window.gulirKe(tujuan + 2);
     })
   );
 }
@@ -812,7 +812,7 @@ function halamanBeranda(parameter) {
   if (window.pasangAplikasi) window.pasangAplikasi();
 
   if (parameter && parameter.get("ke") === "faq") {
-    setTimeout(() => document.querySelector("#faq").scrollIntoView({ behavior: "smooth" }), 60);
+    setTimeout(() => window.gulirKe(document.querySelector("#faq")), 60);
   }
 }
 
@@ -1680,7 +1680,7 @@ function kotakChat(laporan) {
         <h2 style="font-size:16px">Obrolan dengan ${Store.sesi().peran === "petugas" ? "pelapor" : "petugas"}</h2>
         <span class="medan__bantuan">${tutup ? "Laporan sudah ditutup" : "Pesan terhapus otomatis saat laporan ditutup"}</span>
       </div>
-      <div class="chat__daftar" id="chatDaftar" aria-live="polite"><p class="chat__kosong">Memuat pesan...</p></div>
+      <div class="chat__daftar" id="chatDaftar" aria-live="polite" data-lenis-prevent><p class="chat__kosong">Memuat pesan...</p></div>
       ${
         tutup
           ? `<p class="medan__bantuan">Obrolan tidak tersedia karena laporan sudah ${laporan.status === "selesai" ? "selesai" : "ditolak"}.</p>`
@@ -2354,7 +2354,7 @@ new MutationObserver(pasangSpanduk).observe(akar, { childList: true });
 
 window.addEventListener("hashchange", () => {
   gambarRute();
-  window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
+  window.gulirKe(0, { langsung: true });
 });
 
 // Layar pembuka turun ke bawah setelah data siap (minimal tampil sebentar supaya animasinya terlihat).

@@ -220,6 +220,15 @@ class AppViewModel private constructor(contoh: Boolean) : ViewModel() {
             .isSuccess
     }
 
+    suspend fun simpanPanggilan(panggilan: String): Boolean {
+        val s = sesi ?: return false
+        val bersih = panggilan.trim().take(30)
+        if (bersih.isEmpty()) return false
+        return runCatching { Repo.simpanPanggilan(s.id, bersih) }
+            .onSuccess { sesi = s.copy(panggilan = bersih) }
+            .isSuccess
+    }
+
     suspend fun simpanTelepon(nomor: String): Boolean {
         val s = sesi ?: return false
         return runCatching { Repo.simpanTelepon(s.id, nomor) }

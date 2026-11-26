@@ -313,6 +313,7 @@
     const messagesContainer = document.createElement("div");
     messagesContainer.className = "tanggap-ai-messages";
     messagesContainer.id = "tanggapAiMessages";
+    messagesContainer.setAttribute("data-lenis-prevent", "");
 
     // Input Area
     const inputArea = document.createElement("div");

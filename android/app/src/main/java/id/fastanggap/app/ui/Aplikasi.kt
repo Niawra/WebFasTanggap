@@ -62,6 +62,7 @@ import id.fastanggap.app.ui.petugas.RingkasanPetugas
 import id.fastanggap.app.ui.petugas.TugasSaya
 import id.fastanggap.app.ui.siswa.BerandaSiswa
 import id.fastanggap.app.ui.siswa.DetailLaporan
+import id.fastanggap.app.ui.siswa.DialogPanggilan
 import id.fastanggap.app.ui.siswa.LaporanSaya
 import id.fastanggap.app.ui.siswa.LaporFlow
 import kotlinx.coroutines.delay
@@ -129,6 +130,9 @@ private fun Rangka(vm: AppViewModel) {
             ItemNav("Akun", Icons.Rounded.Person),
         )
     }
+
+    // Siswa yang belum punya nama panggilan (baru daftar) ditanya lewat popup.
+    if (!petugas && sesi.panggilan.isBlank()) DialogPanggilan(vm)
 
     Box(Modifier.fillMaxSize()) {
         Box(

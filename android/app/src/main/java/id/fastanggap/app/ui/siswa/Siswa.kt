@@ -75,6 +75,7 @@ import id.fastanggap.app.ui.sejak
 import id.fastanggap.app.ui.tanggal
 import id.fastanggap.app.ui.warnaStatus
 import kotlinx.coroutines.launch
+import androidx.compose.material.icons.rounded.Person
 
 /** Ruang kosong di bawah daftar supaya tidak tertutup bilah kaca. */
 val RuangBilah = 120.dp
@@ -86,7 +87,7 @@ fun BerandaSiswa(vm: AppViewModel, buka: (Laporan) -> Unit, lapor: () -> Unit, s
     val lingkup = rememberCoroutineScope()
     PullToRefreshBox(isRefreshing = vm.menyegarkan, onRefresh = { lingkup.launch { vm.segarkan() } }) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = RuangBilah)) {
-            item { JudulBesar("Halo, ${sesi.nama.substringBefore(" ")}", sub = sesi.kelas.ifBlank { "Siswa" }) }
+            item { JudulBesar("Halo, ${sesi.panggilan.ifBlank { sesi.nama.substringBefore(" ") }}", sub = sesi.kelas.ifBlank { "Siswa" }) }
             item { BannerPeringatan(vm.laporan.filter { it.reporterId == sesi.id }) }
             item {
                 // Kartu ajakan melapor: merah penuh, bisa ditekan.
@@ -337,6 +338,51 @@ fun DetailLaporan(vm: AppViewModel, l: Laporan, tutup: () -> Unit, aksi: @Compos
         }
         Spacer(Modifier.navigationBarsPadding().height(30.dp))
     }
+}
+
+/** Popup setelah daftar: menanyakan nama panggilan, lalu disimpan ke database. */
+@Composable
+fun DialogPanggilan(vm: AppViewModel) {
+    val sesi = vm.sesi ?: return
+    var teks by remember { mutableStateOf(sesi.nama.substringBefore(" ").takeIf { it.any(Char::isLetter) }.orEmpty()) }
+    var sibuk by remember { mutableStateOf(false) }
+    var galat by remember { mutableStateOf<String?>(null) }
+    val lingkup = rememberCoroutineScope()
+    val siap = teks.isNotBlank() && !sibuk
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = { },
+        properties = androidx.compose.ui.window.DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
+        icon = { Icon(androidx.compose.material.icons.Icons.Rounded.Person, null, tint = Warna.Merah) },
+        title = { Text("Kami bisa memanggilmu siapa?") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Nama ini dipakai untuk menyapamu di aplikasi.", color = Warna.TintaLembut)
+                androidx.compose.material3.OutlinedTextField(
+                    value = teks,
+                    onValueChange = { teks = it.take(30); galat = null },
+                    singleLine = true,
+                    placeholder = { Text("Nama panggilan") },
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                galat?.let { Text(it, color = Warna.Merah, style = MaterialTheme.typography.bodyMedium) }
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(
+                enabled = siap,
+                onClick = {
+                    sibuk = true
+                    lingkup.launch {
+                        if (!vm.simpanPanggilan(teks)) galat = "Gagal menyimpan. Periksa koneksi internet."
+                        sibuk = false
+                    }
+                },
+            ) { Text(if (sibuk) "Menyimpan…" else "Simpan", color = Warna.Merah, fontWeight = FontWeight.SemiBold) }
+        },
+        containerColor = Warna.Kartu,
+        shape = RoundedCornerShape(28.dp),
+    )
 }
 
 /** Dialog konfirmasi sebelum laporan dihapus. */
